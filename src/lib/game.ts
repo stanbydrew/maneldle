@@ -52,7 +52,11 @@ async function ensurePuzzle(today: string): Promise<string | null> {
     }
     throw error;
   }
-  return (data as { puzzle_date: string }).puzzle_date;
+  const date = (data as { puzzle_date: string }).puzzle_date;
+  // Exact la miezul nopții, ceasul bazei de date poate fi cu câteva milisecunde
+  // în urmă și să întoarcă puzzle-ul de ieri. Nu-l ținem ore întregi sub cheia de azi.
+  if (date !== today) cacheLife("seconds");
+  return date;
 }
 
 /** Tag-ul de cache pentru progresul unui user (arhiva lui). */
