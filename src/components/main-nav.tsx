@@ -1,8 +1,8 @@
 "use client";
 
-import Link, { useLinkStatus } from "next/link";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 
 const LINKS = [
   { href: "/", label: "Azi" },
@@ -25,21 +25,33 @@ function ActiveNav() {
 }
 
 function NavLinks({ pathname }: { pathname: string | null }) {
+  // Tab-ul apăsat devine activ imediat, cu bara de încărcare, până se schimbă
+  // pagina. (useLinkStatus nu arată nimic când ruta a fost deja preîncărcată,
+  // chiar dacă datele ei încă vin de la server.)
+  const [clicked, setClicked] = useState<{ href: string; from: string | null } | null>(null);
+  const pendingHref = clicked && clicked.from === pathname && !isActive(clicked.href, pathname) ? clicked.href : null;
+
   return (
     <nav className="grid grid-cols-3 gap-1 rounded-xl bg-surface p-1 text-sm font-semibold">
       {LINKS.map(({ href, label }) => {
-        const active = pathname !== null && (href === "/" ? pathname === "/" : pathname.startsWith(href));
+        const pending = pendingHref === href;
+        const active = pendingHref ? pending : isActive(href, pathname);
         return (
           <Link
             key={href}
             href={href}
-            aria-current={active ? "page" : undefined}
+            onClick={(e) => {
+              // Ctrl/Cmd/Shift + click deschide alt tab: pagina curentă nu se schimbă.
+              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+              setClicked({ href, from: pathname });
+            }}
+            aria-current={isActive(href, pathname) ? "page" : undefined}
             className={`relative overflow-hidden rounded-lg py-2 text-center transition ${
               active ? "bg-accent text-accent-foreground" : "text-muted hover:text-foreground"
             }`}
           >
             {label}
-            <PendingBar />
+            {pending && <PendingBar />}
           </Link>
         );
       })}
@@ -47,17 +59,16 @@ function NavLinks({ pathname }: { pathname: string | null }) {
   );
 }
 
-/** Bară care se plimbă sub tab-ul apăsat cât timp se încarcă pagina. */
+function isActive(href: string, pathname: string | null) {
+  if (pathname === null) return false;
+  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+}
+
+/** Bară care se plimbă în partea de jos a tab-ului cât timp se încarcă pagina. */
 function PendingBar() {
-  const { pending } = useLinkStatus();
   return (
-    <span
-      aria-hidden
-      className={`pointer-events-none absolute inset-x-0 bottom-0 h-0.5 overflow-hidden transition-opacity duration-150 ${
-        pending ? "opacity-100 delay-100" : "opacity-0"
-      }`}
-    >
-      <span className="nav-pending-bar block h-full w-1/3 rounded-full bg-accent" />
+    <span aria-hidden className="pointer-events-none absolute inset-x-2 bottom-0.5 h-0.5 overflow-hidden rounded-full">
+      <span className="nav-pending-bar block h-full w-1/3 rounded-full bg-accent-foreground/70" />
     </span>
   );
 }
