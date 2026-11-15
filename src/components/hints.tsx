@@ -7,7 +7,24 @@ import { SpeakerIcon, SpeakerOffIcon } from "./sound-toggle";
 
 const LABELS = ["Versul", "Artistul", "Comentariu literar", "Fragment audio"];
 
-export function Hints({ hints }: { hints: GameState["hints"] }) {
+type Props = {
+  hints: GameState["hints"];
+  /** Indiciul tocmai deblocat: primește focus și e evidențiat scurt. `seq` repornește efectul. */
+  revealed?: { index: number; seq: number } | null;
+};
+
+export function Hints({ hints, revealed }: Props) {
+  const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
+
+  // Focus pe indiciul nou (închide și tastatura pe telefon) și îl centrăm pe ecran.
+  useEffect(() => {
+    if (!revealed) return;
+    const el = itemRefs.current[revealed.index];
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [revealed]);
+
   const items = [
     hints.lyric !== undefined && <blockquote className="text-lg italic leading-snug">„{hints.lyric}”</blockquote>,
     hints.artist !== undefined && <p className="text-lg font-semibold">{hints.artist}</p>,
@@ -20,9 +37,13 @@ export function Hints({ hints }: { hints: GameState["hints"] }) {
       {items.map((content, i) => (
         <li
           key={LABELS[i]}
-          className={`rounded-xl border p-4 transition ${
+          ref={(el) => {
+            itemRefs.current[i] = el;
+          }}
+          tabIndex={-1}
+          className={`scroll-my-6 rounded-xl border p-4 outline-none transition ${
             content ? "border-border bg-surface" : "border-dashed border-border/60 text-muted"
-          }`}
+          } ${revealed?.index === i ? "hint-revealed" : ""}`}
         >
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">
             {i + 1}. {LABELS[i]}

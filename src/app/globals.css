@@ -33,6 +33,15 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* Indiciul tocmai deblocat: un contur auriu care se stinge (vezi hints.tsx). */
+@keyframes hint-reveal {
+  from { box-shadow: 0 0 0 2px var(--accent), 0 0 24px -4px var(--accent); }
+  to { box-shadow: 0 0 0 0 transparent; }
+}
+.hint-revealed {
+  animation: hint-reveal 1.6s ease-out;
+}
+
 /* Indicatorul de încărcare din navigație (vezi main-nav.tsx). */
 @keyframes nav-pending {
   from { transform: translateX(-100%); }

@@ -15,7 +15,7 @@ export function buildShareText(state: GameState, url: string): string {
   const score = won ? `${state.guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`;
   const squares = Array.from({ length: MAX_GUESSES }, (_, i) => {
     const guess = state.guesses[i];
-    return !guess ? "⬛" : guess.correct ? "🟩" : "🟥";
+    return !guess ? "⬛" : guess.correct ? "🟩" : guess.skipped ? "⬜" : "🟥";
   }).join("");
   const day = new Intl.DateTimeFormat("ro-RO", { day: "numeric", month: "short", timeZone: "UTC" }).format(
     new Date(`${state.date}T00:00:00Z`),

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { guessAction } from "@/app/(app)/game-actions";
 import { celebrate, lossFeedback, preloadEndSounds, wrongGuessFeedback } from "@/lib/celebrate";
-import { MAX_GUESSES, type GameState, type SongOption } from "@/lib/game-types";
+import { MAX_GUESSES, SKIP_ID, type GameState, type SongOption } from "@/lib/game-types";
 import { Hints } from "./hints";
 import { ShareButton } from "./share-button";
 import { SongAutocomplete } from "./song-autocomplete";
@@ -16,6 +16,8 @@ export function Game({ initialState, songs }: Props) {
   const [pending, startTransition] = useTransition();
   const resultRef = useRef<HTMLDivElement>(null);
   const [justFinished, setJustFinished] = useState(false);
+  // Indiciul tocmai deblocat (după o greșeală sau un skip), ca să-l aducem în vizor.
+  const [revealed, setRevealed] = useState<{ index: number; seq: number } | null>(null);
 
   // Sunetele de final se încarcă din timp doar dacă jocul e încă în curs.
   const playing = initialState.status === "playing";
@@ -28,10 +30,10 @@ export function Game({ initialState, songs }: Props) {
     if (justFinished) resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [justFinished]);
 
-  function handleGuess(song: SongOption) {
+  function sendGuess(songId: number) {
     setError(null);
     startTransition(async () => {
-      const result = await guessAction(state.date, song.id);
+      const result = await guessAction(state.date, songId);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -42,12 +44,20 @@ export function Game({ initialState, songs }: Props) {
       const { status } = result.state;
       if (status === "won") celebrate();
       else if (status === "lost") lossFeedback();
-      else wrongGuessFeedback();
+      else if (songId !== SKIP_ID) wrongGuessFeedback();
       if (status !== "playing") setJustFinished(true);
+      else setRevealed((r) => ({ index: result.state.guesses.length, seq: (r?.seq ?? 0) + 1 }));
     });
   }
 
   const finished = state.status !== "playing";
+  const lastAttempt = state.guesses.length === MAX_GUESSES - 1;
+
+  function skip() {
+    // Pe ultima încercare, „sari peste” înseamnă că pierzi: cerem confirmare.
+    if (lastAttempt && !window.confirm("E ultima încercare. Sigur vrei să vezi răspunsul?")) return;
+    sendGuess(SKIP_ID);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -57,12 +67,8 @@ export function Game({ initialState, songs }: Props) {
         </p>
       )}
 
-      <Hints hints={state.hints} />
-
-      <GuessSlots guesses={state.guesses} />
-
       {finished && state.answer ? (
-        <div ref={resultRef} className="scroll-mb-6">
+        <div ref={resultRef} className="scroll-mt-6">
           <Result state={state} />
         </div>
       ) : (
@@ -71,7 +77,9 @@ export function Game({ initialState, songs }: Props) {
             songs={songs}
             excludeIds={state.guesses.map((g) => g.songId)}
             disabled={pending}
-            onSubmit={handleGuess}
+            onSubmit={(song) => sendGuess(song.id)}
+            onSkip={skip}
+            lastAttempt={lastAttempt}
           />
           {error && (
             <p role="alert" className="text-sm text-danger">
@@ -80,6 +88,10 @@ export function Game({ initialState, songs }: Props) {
           )}
         </div>
       )}
+
+      <Hints hints={state.hints} revealed={revealed} />
+
+      <GuessSlots guesses={state.guesses} />
     </div>
   );
 }
@@ -92,6 +104,14 @@ function GuessSlots({ guesses }: { guesses: GameState["guesses"] }) {
         const base = "flex h-11 items-center gap-2 rounded-lg border px-3 text-sm";
         if (!guess) {
           return <li key={i} className={`${base} border-border/60 text-muted`}>{i + 1}.</li>;
+        }
+        if (guess.skipped) {
+          return (
+            <li key={i} className={`${base} border-border bg-surface text-muted`}>
+              <span aria-hidden>⏭️</span>
+              <span>Sărit</span>
+            </li>
+          );
         }
         return (
           <li

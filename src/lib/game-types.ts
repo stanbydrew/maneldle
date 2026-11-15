@@ -2,9 +2,12 @@
 
 export const MAX_GUESSES = 4;
 
+/** Id-ul folosit pentru „Sari peste”: consumă o încercare și deblochează indiciul următor. */
+export const SKIP_ID = 0;
+
 export type SongOption = { id: number; title: string };
 
-export type GuessResult = { songId: number; title: string; correct: boolean };
+export type GuessResult = { songId: number; title: string; correct: boolean; skipped: boolean };
 
 export type GameState = {
   date: string; // YYYY-MM-DD

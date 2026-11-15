@@ -9,7 +9,7 @@ import { logout } from "../(auth)/actions";
 // Partea care depinde de user stă în <Suspense> (vezi cacheComponents).
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 py-6">
+    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-5 px-4 pt-6 pb-16">
       <header className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <Link href="/" className="text-2xl font-black tracking-tight">

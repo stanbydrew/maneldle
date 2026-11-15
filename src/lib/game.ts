@@ -1,7 +1,7 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { MAX_GUESSES, type GameState, type SongOption } from "@/lib/game-types";
+import { MAX_GUESSES, SKIP_ID, type GameState, type SongOption } from "@/lib/game-types";
 
 const CLIP_URL_TTL_SECONDS = 5 * 60;
 
@@ -122,8 +122,11 @@ export async function getGameState(userId: string, date: string): Promise<GameSt
 export async function submitGuess(userId: string, date: string, songId: number): Promise<GameState> {
   const admin = createAdminClient();
 
-  const { data: guessed } = await admin.from("songs").select("id").eq("id", songId).maybeSingle();
-  if (!guessed) throw new GameError("Piesa asta nu e în listă.");
+  const skip = songId === SKIP_ID;
+  if (!skip) {
+    const { data: guessed } = await admin.from("songs").select("id").eq("id", songId).maybeSingle();
+    if (!guessed) throw new GameError("Piesa asta nu e în listă.");
+  }
 
   // Două încercări: dacă alt request (dublu-click, alt tab) a scris între timp,
   // reîncărcăm și reîncercăm o dată.
@@ -132,7 +135,7 @@ export async function submitGuess(userId: string, date: string, songId: number):
     const previous = play?.guesses ?? [];
 
     if (play?.finished) throw new GameError("Ai terminat deja puzzle-ul ăsta.");
-    if (previous.includes(songId)) throw new GameError("Ai încercat deja piesa asta.");
+    if (!skip && previous.includes(songId)) throw new GameError("Ai încercat deja piesa asta.");
 
     const guesses = [...previous, songId];
     const solved = songId === song.id;
@@ -232,8 +235,9 @@ async function buildState(date: string, song: SongRow, play: PlayRow | null): Pr
     status,
     guesses: guessIds.map((id) => ({
       songId: id,
-      title: titles.get(id) ?? "?",
+      title: id === SKIP_ID ? "Sărit" : (titles.get(id) ?? "?"),
       correct: id === Number(song.id),
+      skipped: id === SKIP_ID,
     })),
     hints,
     answer: finished

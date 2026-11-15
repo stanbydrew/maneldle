@@ -18,7 +18,7 @@ export async function guessAction(date: unknown, songId: unknown): Promise<Guess
     return { ok: false, error: "Dată invalidă." };
   }
   const id = Number(songId);
-  if (!Number.isSafeInteger(id) || id <= 0) {
+  if (!Number.isSafeInteger(id) || id < 0) { // 0 = „Sari peste”
     return { ok: false, error: "Alege o piesă din listă." };
   }
 
