@@ -1,6 +1,9 @@
 import "server-only";
+import { cacheLife, cacheTag } from "next/cache";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+export const LEADERBOARD_TAG = "leaderboard";
 
 export type LeaderboardRow = {
   rank: number;
@@ -15,8 +18,16 @@ export type LeaderboardRow = {
 /**
  * Clasamentul, ordonat după ghicite ↓, apoi puncte ↓ (calculat în Postgres,
  * vezi funcția `leaderboard` din migrare). Cei egali la ambele au același loc.
+ *
+ * Cache-uit pe server: se schimbă doar când cineva termină o zi (atunci
+ * `guessAction` șterge tag-ul `leaderboard`) sau când începe o zi nouă
+ * (`today` face parte din cheia de cache).
  */
-export async function getLeaderboard(): Promise<LeaderboardRow[]> {
+export async function getLeaderboard(today: string): Promise<LeaderboardRow[]> {
+  "use cache";
+  cacheTag(LEADERBOARD_TAG, `leaderboard-${today}`);
+  cacheLife("hours");
+
   const { data, error } = await createAdminClient().rpc("leaderboard", {
     p_launch: serverEnv.launchDate,
   });

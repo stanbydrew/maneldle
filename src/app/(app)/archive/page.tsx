@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
-import { listArchive, type ArchiveEntry } from "@/lib/game";
+import { listArchive, todayRo, type ArchiveEntry } from "@/lib/game";
 import { MAX_GUESSES } from "@/lib/game-types";
 
 export const metadata = { title: "Arhivă · Maneldle" };
@@ -21,7 +21,7 @@ export default function ArchivePage() {
 
 async function ArchiveList() {
   const user = await requireUser();
-  const entries = await listArchive(user.id);
+  const entries = await listArchive(user.id, todayRo());
 
   if (entries.length === 0) {
     return (

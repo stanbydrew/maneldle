@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 
@@ -34,14 +34,30 @@ function NavLinks({ pathname }: { pathname: string | null }) {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`rounded-lg py-2 text-center transition ${
+            className={`relative overflow-hidden rounded-lg py-2 text-center transition ${
               active ? "bg-accent text-accent-foreground" : "text-muted hover:text-foreground"
             }`}
           >
             {label}
+            <PendingBar />
           </Link>
         );
       })}
     </nav>
+  );
+}
+
+/** Bară care se plimbă sub tab-ul apăsat cât timp se încarcă pagina. */
+function PendingBar() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute inset-x-0 bottom-0 h-0.5 overflow-hidden transition-opacity duration-150 ${
+        pending ? "opacity-100 delay-100" : "opacity-0"
+      }`}
+    >
+      <span className="nav-pending-bar block h-full w-1/3 rounded-full bg-accent" />
+    </span>
   );
 }

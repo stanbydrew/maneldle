@@ -7,6 +7,7 @@ import { createSessionClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { usernameToEmail } from "@/lib/auth";
 import { normalizeUsername, passwordError, usernameError } from "@/lib/auth-rules";
+import { clientIp, LIMITS, TOO_MANY_REQUESTS, withinLimit } from "@/lib/rate-limit";
 
 export type AuthFormState = { error?: string; username?: string };
 
@@ -17,6 +18,14 @@ export async function login(_prev: AuthFormState, formData: FormData): Promise<A
   if (!username || !password) {
     return { error: "Completează username-ul și parola.", username };
   }
+
+  // Limită per IP (scripturi) și per username (ghicit parola cuiva de pe mai multe IP-uri).
+  const ip = await clientIp();
+  const [ipOk, userOk] = await Promise.all([
+    withinLimit(`login:ip:${ip}`, LIMITS.loginPerIp),
+    withinLimit(`login:user:${username}`, LIMITS.loginPerUsername),
+  ]);
+  if (!ipOk || !userOk) return { error: TOO_MANY_REQUESTS, username };
 
   const supabase = await createSessionClient();
   const { error } = await supabase.auth.signInWithPassword({
@@ -36,6 +45,11 @@ export async function register(_prev: AuthFormState, formData: FormData): Promis
   const password = String(formData.get("password") ?? "");
   const inviteCode = String(formData.get("inviteCode") ?? "").trim();
 
+  // Înainte de orice altceva, ca nimeni să nu poată ghici codul de invitație prin încercări repetate.
+  if (!(await withinLimit(`register:ip:${await clientIp()}`, LIMITS.registerPerIp))) {
+    return { error: TOO_MANY_REQUESTS, username };
+  }
+
   if (!isValidInviteCode(inviteCode)) {
     return { error: "Cod de invitație greșit.", username };
   }
@@ -45,6 +59,14 @@ export async function register(_prev: AuthFormState, formData: FormData): Promis
   }
 
   const admin = createAdminClient();
+
+  const { count, error: countError } = await admin
+    .from("profiles")
+    .select("id", { count: "exact", head: true });
+  if (countError) throw countError;
+  if ((count ?? 0) >= serverEnv.maxUsers) {
+    return { error: "S-a atins numărul maxim de conturi. Vorbește cu adminul.", username };
+  }
 
   const { data: existing } = await admin
     .from("profiles")

@@ -1,6 +1,6 @@
 # Maneldle
 
-Un Wordle cu manele pentru grupul de prieteni. În fiecare zi, toată lumea ghicește aceeași piesă, cu 4 încercări și câte un indiciu nou după fiecare greșeală: vers, artist, comentariu literar și un fragment audio de 5 secunde.
+Un Wordle cu manele pentru grupul de prieteni. În fiecare zi, toată lumea ghicește aceeași piesă, cu 4 încercări și câte un indiciu nou după fiecare greșeală: vers, artist, comentariu literar și un fragment audio scurt.
 
 Planul complet și deciziile de design sunt în [`docs/PLAN.md`](docs/PLAN.md).
 

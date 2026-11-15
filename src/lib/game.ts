@@ -1,4 +1,5 @@
 import "server-only";
+import { cacheLife, cacheTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MAX_GUESSES, type GameState, type SongOption } from "@/lib/game-types";
 
@@ -30,18 +31,43 @@ export function todayRo(): string {
 
 /** Piesa zilei: prima cerere din zi o alege, restul primesc același rând. */
 export async function getTodayPuzzleDate(): Promise<string> {
+  const date = await ensurePuzzle(todayRo());
+  if (!date) throw new GameError("Nu există încă nicio piesă în joc.");
+  return date;
+}
+
+// Odată ales, puzzle-ul unei zile nu se mai schimbă, deci RPC-ul rulează o
+// singură dată pe zi (per server). `today` e doar cheia de cache.
+async function ensurePuzzle(today: string): Promise<string | null> {
+  "use cache";
+  cacheTag(`puzzle-${today}`);
+  cacheLife("hours");
+
   const { data, error } = await createAdminClient().rpc("get_today_puzzle");
   if (error) {
+    // Fără piese active nu putem alege nimic; nu ținem rezultatul în cache.
     if (error.message.includes("Nu există nicio piesă activă")) {
-      throw new GameError("Nu există încă nicio piesă în joc.");
+      cacheLife("seconds");
+      return null;
     }
     throw error;
   }
   return (data as { puzzle_date: string }).puzzle_date;
 }
 
-/** Lista pentru autocomplete: doar id + titlu (artistul ar strica indiciul 2). */
+/** Tag-ul de cache pentru progresul unui user (arhiva lui). */
+export function playsTag(userId: string) {
+  return `plays-${userId}`;
+}
+
+/**
+ * Lista pentru autocomplete: doar id + titlu (artistul ar strica indiciul 2).
+ * Se schimbă doar când adaugi piese în DB, deci o ținem în cache câteva minute.
+ */
 export async function listSongOptions(): Promise<SongOption[]> {
+  "use cache";
+  cacheTag("songs");
+  cacheLife("minutes");
   const { data, error } = await createAdminClient()
     .from("songs")
     .select("id, title")
@@ -58,9 +84,12 @@ export type ArchiveEntry = {
 };
 
 /** Zilele trecute care au avut puzzle (cele mai recente primele), cu progresul userului. */
-export async function listArchive(userId: string): Promise<ArchiveEntry[]> {
+export async function listArchive(userId: string, today: string): Promise<ArchiveEntry[]> {
+  "use cache";
+  cacheTag(playsTag(userId));
+  cacheLife("minutes"); // ca zilele adăugate manual în DB să apară repede
+
   const admin = createAdminClient();
-  const today = todayRo();
 
   const [{ data: puzzles, error: puzzlesError }, { data: plays, error: playsError }] = await Promise.all([
     admin.from("daily_puzzles").select("puzzle_date").lt("puzzle_date", today).order("puzzle_date", { ascending: false }),
@@ -148,29 +177,39 @@ export async function submitGuess(userId: string, date: string, songId: number):
 }
 
 async function loadGame(userId: string, date: string) {
-  const admin = createAdminClient();
-
   if (date > todayRo()) throw new GameError("Puzzle-ul ăsta nu e disponibil încă.");
 
-  const { data: puzzle, error: puzzleError } = await admin
+  // Piesa zilei vine din cache; progresul userului se citește mereu proaspăt.
+  const [song, { data: play, error: playError }] = await Promise.all([
+    puzzleSong(date),
+    createAdminClient()
+      .from("plays")
+      .select("guesses, solved, finished, is_late")
+      .eq("user_id", userId)
+      .eq("puzzle_date", date)
+      .maybeSingle(),
+  ]);
+  if (playError) throw playError;
+  if (!song) throw new GameError("Nu există puzzle pentru ziua asta.");
+
+  return { song, play: play as PlayRow | null };
+}
+
+/** Piesa unei zile. Rămâne în cache câteva minute, ca editările din DB să ajungă repede. */
+async function puzzleSong(date: string): Promise<SongRow | null> {
+  "use cache";
+  cacheTag(`puzzle-${date}`);
+  cacheLife("minutes");
+
+  const { data, error } = await createAdminClient()
     .from("daily_puzzles")
     .select(
       "song:songs!inner (id, title, artist, obscure_lyric, literary_comment, youtube_url, audio_path)",
     )
     .eq("puzzle_date", date)
     .maybeSingle();
-  if (puzzleError) throw puzzleError;
-  if (!puzzle) throw new GameError("Nu există puzzle pentru ziua asta.");
-
-  const { data: play, error: playError } = await admin
-    .from("plays")
-    .select("guesses, solved, finished, is_late")
-    .eq("user_id", userId)
-    .eq("puzzle_date", date)
-    .maybeSingle();
-  if (playError) throw playError;
-
-  return { song: puzzle.song as unknown as SongRow, play: play as PlayRow | null };
+  if (error) throw error;
+  return data ? (data.song as unknown as SongRow) : null;
 }
 
 async function buildState(date: string, song: SongRow, play: PlayRow | null): Promise<GameState> {
@@ -205,9 +244,8 @@ async function buildState(date: string, song: SongRow, play: PlayRow | null): Pr
 
 async function titlesById(ids: number[]): Promise<Map<number, string>> {
   if (ids.length === 0) return new Map();
-  const { data, error } = await createAdminClient().from("songs").select("id, title").in("id", ids);
-  if (error) throw error;
-  return new Map(data.map((s) => [Number(s.id), s.title]));
+  const songs = await listSongOptions(); // din cache
+  return new Map(songs.map((s) => [Number(s.id), s.title]));
 }
 
 async function signedClipUrl(path: string | null): Promise<string | null> {

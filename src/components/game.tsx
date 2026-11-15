@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { guessAction } from "@/app/(app)/game-actions";
-import { celebrate, lossFeedback, wrongGuessFeedback } from "@/lib/celebrate";
+import { celebrate, lossFeedback, preloadEndSounds, wrongGuessFeedback } from "@/lib/celebrate";
 import { MAX_GUESSES, type GameState, type SongOption } from "@/lib/game-types";
 import { Hints } from "./hints";
 import { ShareButton } from "./share-button";
@@ -16,6 +16,12 @@ export function Game({ initialState, songs }: Props) {
   const [pending, startTransition] = useTransition();
   const resultRef = useRef<HTMLDivElement>(null);
   const [justFinished, setJustFinished] = useState(false);
+
+  // Sunetele de final se încarcă din timp doar dacă jocul e încă în curs.
+  const playing = initialState.status === "playing";
+  useEffect(() => {
+    if (playing) preloadEndSounds();
+  }, [playing]);
 
   // Când jocul tocmai s-a terminat, derulăm până la ecranul de final.
   useEffect(() => {

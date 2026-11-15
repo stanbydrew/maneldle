@@ -3,15 +3,46 @@
 import confetti from "canvas-confetti";
 import { getSoundSettings } from "@/lib/sound-settings";
 
-// Efectele de final de încercare: sunete sintetizate cu Web Audio (fără
-// fișiere audio) și confetti la victorie.
+// Efectele de final de încercare: la victorie confetti + o bucată de manea,
+// la pierdere altă bucată (fișiere din public/sounds), iar la o încercare
+// greșită un „bonk” sintetizat cu Web Audio.
+
+const WIN_SOUND = "/sounds/win.mp3";
+const LOSE_SOUND = "/sounds/lose.mp3";
+const sounds = new Map<string, HTMLAudioElement>();
+
+/** Încarcă din timp sunetele de final, ca să pornească instant. */
+export function preloadEndSounds() {
+  for (const src of [WIN_SOUND, LOSE_SOUND]) getSound(src);
+}
+
+function getSound(src: string) {
+  let audio = sounds.get(src);
+  if (!audio) {
+    audio = new Audio(src);
+    audio.preload = "auto";
+    sounds.set(src, audio);
+  }
+  return audio;
+}
+
+function playFile(src: string) {
+  const settings = getSoundSettings();
+  if (settings.effectsMuted) return;
+  // Oprim fragmentul-indiciu, dacă rulează, ca să nu se suprapună.
+  document.querySelectorAll("audio").forEach((el) => el.pause());
+  const audio = getSound(src);
+  audio.volume = settings.clipVolume;
+  audio.currentTime = 0;
+  audio.play().catch(() => {}); // browserul poate bloca redarea; nu e grav
+}
 
 const COLORS = ["#f5c542", "#ffffff", "#ff4fa3", "#8b5cf6", "#4ade80"];
 
-/** Victorie: confetti + jingle ascendent. */
+/** Victorie: confetti + manea de victorie. */
 export function celebrate() {
   launchConfetti();
-  playVictoryJingle();
+  playFile(WIN_SOUND);
 }
 
 /** Încercare greșită, dar jocul continuă: un „bonk” scurt. */
@@ -22,39 +53,9 @@ export function wrongGuessFeedback() {
   });
 }
 
-/** Ultima încercare ratată: „trombonul trist” (wah wah wah waaah). */
+/** Ultima încercare ratată: maneaua de consolare. */
 export function lossFeedback() {
-  play(0.12, (ctx, out) => {
-    const notes: [number, number, number][] = [
-      // [frecvență, start, durată]
-      [392.0, 0, 0.32], // sol
-      [369.99, 0.36, 0.32], // fa#
-      [349.23, 0.72, 0.32], // fa
-      [329.63, 1.08, 1.0], // mi, lung
-    ];
-    for (const [frequency, start, length] of notes) {
-      tone(ctx, out, { type: "sawtooth", from: frequency, to: frequency * 0.97, start, length, volume: 0.6, vibrato: start > 1 });
-    }
-  });
-}
-
-function playVictoryJingle() {
-  play(0.18, (ctx, out) => {
-    const C5 = 523.25, E5 = 659.25, G5 = 783.99, C6 = 1046.5;
-    const notes: [number[], number, number][] = [
-      // [frecvențe, start, durată]
-      [[C5], 0, 0.14],
-      [[E5], 0.12, 0.14],
-      [[G5], 0.24, 0.14],
-      [[C6], 0.36, 0.2],
-      [[C5, E5, G5, C6], 0.56, 0.9],
-    ];
-    for (const [frequencies, start, length] of notes) {
-      for (const frequency of frequencies) {
-        tone(ctx, out, { type: "triangle", from: frequency, start, length, volume: 1 / frequencies.length });
-      }
-    }
-  });
+  playFile(LOSE_SOUND);
 }
 
 function launchConfetti() {

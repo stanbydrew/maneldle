@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generează fragmentele audio de 5 secunde și le urcă în bucket-ul privat `clips`.
+// Generează fragmentele audio și le urcă în bucket-ul privat `clips`.
 //
 //   npm run clips                 # piesele care nu au încă fragment
 //   npm run clips -- --force      # regenerează toate fragmentele
@@ -7,7 +7,8 @@
 //
 // Are nevoie de `yt-dlp` și `ffmpeg` în PATH. Pentru fiecare piesă cu
 // `youtube_url` și `audio_start_seconds` completate în tabela `songs`:
-// descarcă audio-ul, taie [start, start + 5s], urcă un .mp3 cu nume aleator
+// descarcă audio-ul, taie [audio_start_seconds, audio_end_seconds] (sau 5s de la
+// start dacă audio_end_seconds e gol), urcă un .mp3 cu nume aleator
 // (ca numele fișierului să nu dea răspunsul) și completează `audio_path`.
 
 import { execFileSync } from "node:child_process";
@@ -18,7 +19,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 
-const CLIP_SECONDS = 5;
+const DEFAULT_CLIP_SECONDS = 5;
 const FADE_SECONDS = 0.15;
 // Toate fragmentele la același volum, mai jos decât masterizarea agresivă a pieselor.
 const LOUDNESS = "loudnorm=I=-18:TP=-2:LRA=11";
@@ -47,7 +48,7 @@ for (const tool of [["yt-dlp", "--version"], ["ffmpeg", "-version"]]) {
 
 let query = supabase
   .from("songs")
-  .select("id, title, youtube_url, audio_start_seconds, audio_path")
+  .select("id, title, youtube_url, audio_start_seconds, audio_end_seconds, audio_path")
   .not("youtube_url", "is", null)
   .not("audio_start_seconds", "is", null)
   .order("id");
@@ -77,13 +78,16 @@ for (const song of songs) {
 
     process.stdout.write("tai… ");
     const start = Number(song.audio_start_seconds);
+    const end = song.audio_end_seconds == null ? start + DEFAULT_CLIP_SECONDS : Number(song.audio_end_seconds);
+    const length = end - start;
+    if (!(length > 0)) throw new Error(`interval invalid: ${start}s → ${end}s`);
     const output = join(workDir, "clip.mp3");
     execFileSync(
       "ffmpeg",
       [
         "-hide_banner", "-loglevel", "error",
-        "-ss", String(start), "-t", String(CLIP_SECONDS), "-i", join(workDir, source),
-        "-af", `${LOUDNESS},afade=t=in:d=${FADE_SECONDS},afade=t=out:st=${CLIP_SECONDS - FADE_SECONDS}:d=${FADE_SECONDS}`,
+        "-ss", String(start), "-t", String(length), "-i", join(workDir, source),
+        "-af", `${LOUDNESS},afade=t=in:d=${FADE_SECONDS},afade=t=out:st=${length - FADE_SECONDS}:d=${FADE_SECONDS}`,
         "-map_metadata", "-1", // fără titlu/artist în metadatele fișierului
         "-ac", "2", "-ar", "44100", "-b:a", "128k",
         output,
@@ -105,7 +109,7 @@ for (const song of songs) {
     }
     if (song.audio_path) await supabase.storage.from(BUCKET).remove([song.audio_path]);
 
-    console.log(`gata (${start}s → ${start + CLIP_SECONDS}s)`);
+    console.log(`gata (${start}s → ${end}s, ${length}s)`);
     ok++;
   } catch (err) {
     const detail = err.stderr?.toString().trim() || err.message;

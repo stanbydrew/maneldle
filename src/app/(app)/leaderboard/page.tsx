@@ -25,7 +25,8 @@ async function Leaderboard() {
   const user = await requireUser();
   const launch = serverEnv.launchDate;
 
-  if (todayRo() < launch) {
+  const today = todayRo();
+  if (today < launch) {
     return (
       <p className="rounded-xl border border-border bg-surface p-6 text-center text-muted">
         Clasamentul pornește pe <span className="font-semibold text-foreground">{formatDate(launch)}</span>.
@@ -35,7 +36,7 @@ async function Leaderboard() {
     );
   }
 
-  const rows = await getLeaderboard();
+  const rows = await getLeaderboard(today);
 
   return (
     <div className="overflow-hidden rounded-xl border border-border">

@@ -11,7 +11,7 @@ Ai 4 încercări. După fiecare greșeală se deblochează următorul indiciu:
 | 1 | Un vers obscur din piesă (nu din refren) |
 | 2 | + numele cântărețului |
 | 3 | + un „comentariu literar” (amuzant) despre mesajul piesei |
-| 4 | + un fragment audio de 5 secunde |
+| 4 | + un fragment audio (intervalul ales pentru fiecare piesă) |
 
 - Răspunsul se alege dintr-un **autocomplete** care afișează doar titlurile. Dacă ar afișa și artistul, ar strica indiciul 2.
 - La final (ghicit sau nu) apar titlul, artistul și linkul de YouTube.
@@ -61,7 +61,7 @@ Un singur leaderboard, comun pentru toată lumea. Nu există grupuri.
 ```
 profiles       id, username, is_admin, created_at
 songs          id, title, artist, obscure_lyric, literary_comment,
-               youtube_url, audio_start_seconds, audio_path, active
+               youtube_url, audio_start_seconds, audio_end_seconds, audio_path, active
 daily_puzzles  puzzle_date (PK), song_id, cycle      UNIQUE(cycle, song_id)
 plays          user_id, puzzle_date, guesses[], solved, finished, is_late
                PK(user_id, puzzle_date)
@@ -76,7 +76,7 @@ plays          user_id, puzzle_date, guesses[], solved, finished, is_late
 - [x] 5. Leaderboard
 - [x] 6. Arhiva
 - [x] 7. Share cu emoji
-- [x] 8. Scriptul audio: `yt-dlp` + `ffmpeg` (5s de la `audio_start_seconds`), upload în `clips`, completează `audio_path`
+- [x] 8. Scriptul audio: `yt-dlp` + `ffmpeg` (`audio_start_seconds` → `audio_end_seconds`, implicit 5s), upload în `clips`, completează `audio_path`
 
 ## Setup Supabase (o singură dată)
 
@@ -88,7 +88,7 @@ plays          user_id, puzzle_date, guesses[], solved, finished, is_late
 
 ## Fragmente audio
 
-Completează `youtube_url` și `audio_start_seconds` în tabela `songs`, apoi rulează:
+Completează `youtube_url`, `audio_start_seconds` și `audio_end_seconds` în tabela `songs`, apoi rulează:
 
 ```
 npm run clips              # piesele noi, fără fragment

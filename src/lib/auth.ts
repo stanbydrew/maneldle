@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { cacheLife, cacheTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -31,15 +32,25 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const userId = data?.claims?.sub;
   if (error || !userId) return null;
 
-  const { data: profile } = await createAdminClient()
+  return getProfile(userId);
+});
+
+/** Profilul se schimbă foarte rar, deci nu-l mai cerem din DB la fiecare pagină. */
+async function getProfile(userId: string): Promise<CurrentUser | null> {
+  "use cache";
+  cacheTag(`profile-${userId}`);
+  cacheLife("minutes");
+
+  const { data: profile, error } = await createAdminClient()
     .from("profiles")
     .select("id, username, is_admin")
     .eq("id", userId)
     .maybeSingle();
+  if (error) throw error;
 
   if (!profile) return null;
   return { id: profile.id, username: profile.username, isAdmin: profile.is_admin };
-});
+}
 
 /** Pentru pagini și acțiuni care cer login: redirect la /login dacă nu e cazul. */
 export async function requireUser(): Promise<CurrentUser> {

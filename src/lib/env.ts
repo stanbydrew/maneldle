@@ -19,6 +19,12 @@ export const serverEnv = {
   get inviteCode() {
     return required("INVITE_CODE");
   },
+  /** Câte conturi se pot crea în total (implicit 30). */
+  get maxUsers() {
+    const value = Number(process.env.MAX_USERS ?? 30);
+    if (!Number.isSafeInteger(value) || value < 1) throw new Error("MAX_USERS trebuie să fie un număr întreg pozitiv");
+    return value;
+  },
   get launchDate() {
     const value = required("LAUNCH_DATE");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("LAUNCH_DATE trebuie să fie YYYY-MM-DD");

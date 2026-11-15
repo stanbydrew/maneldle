@@ -32,3 +32,15 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* Indicatorul de încărcare din navigație (vezi main-nav.tsx). */
+@keyframes nav-pending {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+.nav-pending-bar {
+  animation: nav-pending 0.9s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-pending-bar { animation: none; width: 100%; }
+}
