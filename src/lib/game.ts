@@ -50,6 +50,37 @@ export async function listSongOptions(): Promise<SongOption[]> {
   return data;
 }
 
+export type ArchiveEntry = {
+  date: string;
+  status: "won" | "lost" | "playing" | "unplayed";
+  guesses: number;
+  isLate: boolean;
+};
+
+/** Zilele trecute care au avut puzzle (cele mai recente primele), cu progresul userului. */
+export async function listArchive(userId: string): Promise<ArchiveEntry[]> {
+  const admin = createAdminClient();
+  const today = todayRo();
+
+  const [{ data: puzzles, error: puzzlesError }, { data: plays, error: playsError }] = await Promise.all([
+    admin.from("daily_puzzles").select("puzzle_date").lt("puzzle_date", today).order("puzzle_date", { ascending: false }),
+    admin.from("plays").select("puzzle_date, guesses, solved, finished, is_late").eq("user_id", userId).lt("puzzle_date", today),
+  ]);
+  if (puzzlesError) throw puzzlesError;
+  if (playsError) throw playsError;
+
+  const byDate = new Map(plays.map((p) => [p.puzzle_date as string, p]));
+  return puzzles.map(({ puzzle_date: date }) => {
+    const play = byDate.get(date);
+    return {
+      date,
+      status: !play ? "unplayed" : play.solved ? "won" : play.finished ? "lost" : "playing",
+      guesses: play?.guesses.length ?? 0,
+      isLate: play?.is_late ?? false,
+    };
+  });
+}
+
 export async function getGameState(userId: string, date: string): Promise<GameState> {
   const { song, play } = await loadGame(userId, date);
   return buildState(date, song, play);

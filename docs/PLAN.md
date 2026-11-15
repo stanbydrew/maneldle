@@ -73,9 +73,9 @@ plays          user_id, puzzle_date, guesses[], solved, finished, is_late
 - [x] 2. Migrare: schema, `get_today_puzzle()`, `leaderboard()`, RLS, bucket-ul `clips`
 - [x] 3. Auth: înregistrare cu cod, login, logout, proxy pentru refresh-ul sesiunii
 - [x] 4. Ecranul de joc + API-ul de ghicit
-- [ ] 5. Leaderboard
-- [ ] 6. Arhiva
-- [ ] 7. Share cu emoji
+- [x] 5. Leaderboard
+- [x] 6. Arhiva
+- [x] 7. Share cu emoji
 - [x] 8. Scriptul audio: `yt-dlp` + `ffmpeg` (5s de la `audio_start_seconds`), upload în `clips`, completează `audio_path`
 
 ## Setup Supabase (o singură dată)

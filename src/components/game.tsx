@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { guessAction } from "@/app/game-actions";
+import { guessAction } from "@/app/(app)/game-actions";
 import { celebrate, lossFeedback, wrongGuessFeedback } from "@/lib/celebrate";
 import { MAX_GUESSES, type GameState, type SongOption } from "@/lib/game-types";
 import { Hints } from "./hints";
+import { ShareButton } from "./share-button";
 import { SongAutocomplete } from "./song-autocomplete";
 
 type Props = { initialState: GameState; songs: SongOption[] };
@@ -122,16 +123,19 @@ function Result({ state }: { state: GameState }) {
         <span className="block text-lg font-semibold">{answer.title}</span>
         <span className="text-muted">{answer.artist}</span>
       </p>
-      {answer.youtubeUrl && (
-        <a
-          href={answer.youtubeUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-lg bg-accent px-4 py-2 font-semibold text-accent-foreground transition hover:brightness-110"
-        >
-          Ascult-o pe YouTube ↗
-        </a>
-      )}
+      <div className="flex flex-wrap justify-center gap-2">
+        {answer.youtubeUrl && (
+          <a
+            href={answer.youtubeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg bg-accent px-4 py-2 font-semibold text-accent-foreground transition hover:brightness-110"
+          >
+            Ascult-o pe YouTube ↗
+          </a>
+        )}
+        <ShareButton state={state} />
+      </div>
       {!state.isLate && <p className="text-sm text-muted">Revino mâine pentru o piesă nouă.</p>}
     </div>
   );
