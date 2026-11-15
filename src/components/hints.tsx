@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { GameState } from "@/lib/game-types";
+import { updateSoundSettings, useSoundSettings } from "@/lib/sound-settings";
+import { SpeakerIcon, SpeakerOffIcon } from "./sound-toggle";
 
 const LABELS = ["Versul", "Artistul", "Comentariu literar", "Fragment audio"];
 
@@ -38,7 +40,6 @@ export function Hints({ hints }: { hints: GameState["hints"] }) {
 // ---------------------------------------------------------------------------
 
 const BAR_COUNT = 48;
-const PLAYER_VOLUME = 0.6;
 
 // Înălțimi fixe, pseudo-aleatorii, ca forma de undă să arate la fel la fiecare randare.
 const BARS = Array.from({ length: BAR_COUNT }, (_, i) => {
@@ -53,6 +54,19 @@ function AudioClip({ url }: { url: string | null }) {
   const [status, setStatus] = useState<PlayerStatus>("idle");
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(5);
+  const { clipVolume } = useSoundSettings();
+  // Ultimul volum nenul, ca butonul de mute să revină la el.
+  const [lastVolume, setLastVolume] = useState(clipVolume || 0.6);
+
+  // Volumul se aplică live, inclusiv cât rulează fragmentul.
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = clipVolume;
+  }, [clipVolume, url]);
+
+  function setVolume(volume: number) {
+    if (volume > 0) setLastVolume(volume);
+    updateSoundSettings({ clipVolume: volume });
+  }
 
   // Progresul se actualizează la fiecare frame cât rulează, pentru o animație fluidă.
   useEffect(() => {
@@ -78,7 +92,7 @@ function AudioClip({ url }: { url: string | null }) {
       return;
     }
     if (audio.ended || progress >= 1) audio.currentTime = 0;
-    audio.volume = PLAYER_VOLUME;
+    audio.volume = clipVolume;
     setStatus("loading");
     try {
       await audio.play();
@@ -122,6 +136,28 @@ function AudioClip({ url }: { url: string | null }) {
       <div className="col-start-2 flex justify-between font-mono text-xs text-muted">
         <span>{formatTime(elapsed)}</span>
         <span>{status === "loading" ? "se încarcă…" : formatTime(duration)}</span>
+      </div>
+
+      <div className="col-start-2 flex items-center gap-2 text-muted">
+        <button
+          type="button"
+          onClick={() => setVolume(clipVolume > 0 ? 0 : lastVolume)}
+          aria-label={clipVolume > 0 ? "Fără sonor" : "Pornește sonorul"}
+          className="transition hover:text-foreground"
+        >
+          {clipVolume > 0 ? <SpeakerIcon size={16} /> : <SpeakerOffIcon size={16} />}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={clipVolume}
+          onChange={(e) => setVolume(Number(e.target.value))}
+          aria-label="Volumul fragmentului"
+          className="h-1 w-28 cursor-pointer accent-accent"
+        />
+        <span className="w-8 font-mono text-xs">{Math.round(clipVolume * 100)}%</span>
       </div>
 
       <audio

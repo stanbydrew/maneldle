@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { Game } from "@/components/game";
+import { SoundToggle } from "@/components/sound-toggle";
 import { requireUser } from "@/lib/auth";
 import { GameError, getGameState, getTodayPuzzleDate, listSongOptions } from "@/lib/game";
 import { logout } from "./(auth)/actions";
@@ -13,9 +14,12 @@ export default function Home() {
         <h1 className="text-2xl font-black tracking-tight">
           Manel<span className="text-accent">dle</span>
         </h1>
-        <Suspense fallback={<span className="h-5 w-24 animate-pulse rounded bg-surface" />}>
-          <UserMenu />
-        </Suspense>
+        <div className="flex items-center gap-3">
+          <SoundToggle />
+          <Suspense fallback={<span className="h-5 w-24 animate-pulse rounded bg-surface" />}>
+            <UserMenu />
+          </Suspense>
+        </div>
       </header>
 
       <Suspense fallback={<GameSkeleton />}>

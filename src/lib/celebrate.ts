@@ -1,6 +1,7 @@
 "use client";
 
 import confetti from "canvas-confetti";
+import { getSoundSettings } from "@/lib/sound-settings";
 
 // Efectele de final de încercare: sunete sintetizate cu Web Audio (fără
 // fișiere audio) și confetti la victorie.
@@ -89,7 +90,7 @@ function play(masterVolume: number, build: (ctx: AudioContext, out: AudioNode) =
   const AudioCtx =
     window.AudioContext ??
     (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) return;
+  if (!AudioCtx || getSoundSettings().effectsMuted) return;
 
   const ctx = new AudioCtx();
   const master = ctx.createGain();
