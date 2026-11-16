@@ -27,3 +27,15 @@ npm run clips -- --force   # regenerează tot
 ```
 
 Ai nevoie de `yt-dlp` și `ffmpeg` în PATH.
+
+### Refrenul de la final
+
+La câștig cântă refrenul piesei (`chorus_start_seconds` → `chorus_end_seconds`, max 30s). Pentru piese noi:
+
+```
+npm run chorus:propose -- --id 53   # propune partea cea mai redată de pe YouTube
+                                    # → ascultă și corectează în .chorus-review/index.html
+npm run clips -- --chorus           # după ce ai pus intervalul în DB: taie și urcă refrenele lipsă
+```
+
+Fără refren, la câștig cântă sunetul implicit din `public/sounds/win.mp3`. Șterge `.chorus-review/` după ce ai terminat (audio complet, doar local).

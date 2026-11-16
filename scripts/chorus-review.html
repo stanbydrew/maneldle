@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Refrene Maneldle</title>
+<style>
+  :root { --bg:#120d1a; --surface:#1d1626; --border:#33283f; --fg:#f3eefa; --muted:#a397b3; --accent:#f5c542; --ok:#4ade80; --bad:#f87171; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { margin:0 0 4px; font-size:24px; } h1 span { color:var(--accent); }
+  .help { color:var(--muted); margin:0 0 16px; font-size:14px; }
+  .bar { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 0; background:var(--bg); border-bottom:1px solid var(--border); margin-bottom:16px; }
+  .bar .stats { color:var(--muted); font-size:14px; margin-right:auto; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--fg); padding:6px 12px; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:#120d1a; border-color:var(--accent); font-weight:600; }
+  button.on.ok { background:var(--ok); color:#06210f; border-color:var(--ok); }
+  button.on.bad { background:var(--bad); color:#2a0606; border-color:var(--bad); }
+  .song { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:12px; }
+  .song.ok { border-color:color-mix(in srgb, var(--ok) 60%, transparent); }
+  .song.bad { border-color:color-mix(in srgb, var(--bad) 60%, transparent); }
+  .head { display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+  .head b { font-size:16px; } .head .artist { color:var(--muted); } .head a { color:var(--accent); font-size:13px; margin-left:auto; }
+  .heat { position:relative; height:56px; margin:10px 0; cursor:crosshair; background:#0c0912; border-radius:6px; overflow:hidden; touch-action:none; }
+  .heat svg { position:absolute; inset:0; width:100%; height:100%; }
+  .heat .win { position:absolute; top:0; bottom:0; background:color-mix(in srgb, var(--accent) 28%, transparent); border-left:2px solid var(--accent); border-right:2px solid var(--accent); pointer-events:none; }
+  .heat .head-pos { position:absolute; top:0; bottom:0; width:2px; background:#fff; pointer-events:none; display:none; }
+  .heat .none { position:absolute; inset:0; display:grid; place-items:center; color:var(--muted); font-size:13px; }
+  .controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  label { color:var(--muted); font-size:13px; display:flex; gap:4px; align-items:center; }
+  input { width:78px; font:inherit; background:#0c0912; color:var(--fg); border:1px solid var(--border); border-radius:6px; padding:4px 6px; }
+  .len { color:var(--muted); font-size:13px; }
+  .spacer { flex:1; }
+  .missing { color:var(--bad); font-size:13px; }
+  .weak { font-size:12px; color:#1a1206; background:#fb923c; border-radius:999px; padding:1px 8px; font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Manel<span>dle</span> · refrene</h1>
+  <p class="help">
+    Zona galbenă e porțiunea propusă: cea mai reascultată de pe YouTube (graficul din spate). <b>▶ Ascultă</b> o cântă.
+    Click pe grafic mută începutul acolo (păstrând durata); poți scrie și secundele direct. Marchează fiecare piesă
+    cu 👍 sau 👎. Cele cu eticheta portocalie <b>de verificat</b> au un grafic fără vârf clar. Modificările se păstrează în browser. La final apasă <b>Copiază rezultatul</b> și lipește-l în chat.
+  </p>
+  <div class="bar">
+    <span class="stats" id="stats"></span>
+    <button id="stop">⏹ Stop</button>
+    <button class="primary" id="copy">Copiază rezultatul</button>
+  </div>
+  <div id="list"></div>
+</main>
+<audio id="player" preload="none"></audio>
+<script src="data.js"></script>
+<script>
+  const KEY = "maneldle-chorus-review";
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch {}
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch {} };
+
+  const songs = (window.SONGS || []).map((s) => ({ ...s, ...(saved[s.id] || {}) }));
+  const player = document.getElementById("player");
+  let playing = null; // { song, end, el }
+
+  const fmt = (t) => t == null ? "–" : `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}${t % 1 ? "." + Math.round((t % 1) * 10) : ""}`;
+
+  function save(song) {
+    saved[song.id] = { start: song.start, end: song.end, verdict: song.verdict };
+    persist();
+    renderStats();
+  }
+
+  function renderStats() {
+    const ok = songs.filter((s) => s.verdict === "ok").length;
+    const bad = songs.filter((s) => s.verdict === "bad").length;
+    document.getElementById("stats").textContent = `${songs.length} piese · 👍 ${ok} · 👎 ${bad} · neverificate ${songs.length - ok - bad}`;
+  }
+
+  function stop() {
+    player.pause();
+    if (playing) { playing.el.querySelector(".head-pos").style.display = "none"; playing.el.querySelector(".play").textContent = "▶ Ascultă"; }
+    playing = null;
+  }
+
+  function play(song, el, from) {
+    stop();
+    if (song.start == null) return;
+    player.src = song.audio;
+    player.currentTime = from ?? song.start;
+    player.play();
+    playing = { song, el };
+    el.querySelector(".play").textContent = "⏸ Pauză";
+  }
+
+  player.addEventListener("timeupdate", () => {
+    if (!playing) return;
+    const { song, el } = playing;
+    const pos = el.querySelector(".head-pos");
+    pos.style.display = "block";
+    pos.style.left = `${(player.currentTime / song.duration) * 100}%`;
+    if (player.currentTime >= song.end) stop();
+  });
+
+  function heatSvg(values) {
+    if (!values.length) return "";
+    const w = values.length, pts = values.map((v, i) => `${i},${(1 - v) * 54 + 1}`);
+    return `<svg viewBox="0 0 ${w - 1} 56" preserveAspectRatio="none"><polygon points="0,56 ${pts.join(" ")} ${w - 1},56" fill="#6b5a85" /></svg>`;
+  }
+
+  function render(song) {
+    const el = document.createElement("section");
+    el.className = "song";
+    el.innerHTML = `
+      <div class="head"><span class="artist">#${song.id}</span><b></b><span class="artist"></span>${song.weak ? '<span class="weak" title="Graficul nu are un vârf clar: propunerea e mai degrabă o ghicitoare">de verificat</span>' : ""}<a target="_blank" rel="noopener">YouTube de aici ↗</a></div>
+      <div class="heat">${heatSvg(song.heatmap)}<div class="win"></div><div class="head-pos"></div>${song.heatmap.length ? "" : '<div class="none">Fără grafic „Cele mai redate”: click unde vrei să înceapă</div>'}</div>
+      <div class="controls">
+        <button class="play">▶ Ascultă</button>
+        <button class="back" title="Ascultă cu 5 secunde înainte de început">⏪ 5s înainte</button>
+        <label>de la <input class="start" type="number" step="0.5" min="0" /></label>
+        <label>până la <input class="end" type="number" step="0.5" min="0" /></label>
+        <span class="len"></span>
+        <span class="spacer"></span>
+        <button class="v ok">👍</button><button class="v bad">👎</button>
+      </div>`;
+    el.querySelector("b").textContent = song.title;
+    el.querySelectorAll(".artist")[1].textContent = song.artist;
+    const startIn = el.querySelector(".start"), endIn = el.querySelector(".end");
+
+    function update() {
+      const win = el.querySelector(".win");
+      const has = song.start != null && song.end != null;
+      win.style.display = has ? "block" : "none";
+      if (has) { win.style.left = `${(song.start / song.duration) * 100}%`; win.style.width = `${((song.end - song.start) / song.duration) * 100}%`; }
+      startIn.value = song.start ?? ""; endIn.value = song.end ?? "";
+      el.querySelector(".len").textContent = has ? `${fmt(song.start)} → ${fmt(song.end)} (${+(song.end - song.start).toFixed(1)}s)` : "";
+      el.querySelector("a").href = `${song.youtubeUrl}${song.youtubeUrl.includes("?") ? "&" : "?"}t=${Math.floor(song.start ?? 0)}s`;
+      el.classList.toggle("ok", song.verdict === "ok"); el.classList.toggle("bad", song.verdict === "bad");
+      el.querySelector(".v.ok").classList.toggle("on", song.verdict === "ok");
+      el.querySelector(".v.bad").classList.toggle("on", song.verdict === "bad");
+    }
+
+    el.querySelector(".heat").addEventListener("click", (e) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      const len = song.start != null ? song.end - song.start : 12;
+      const start = Math.max(0, Math.round(((e.clientX - r.left) / r.width) * song.duration * 2) / 2);
+      song.start = start; song.end = Math.min(song.duration, start + len);
+      save(song); update(); play(song, el);
+    });
+    el.querySelector(".play").addEventListener("click", () => (playing?.song === song ? stop() : play(song, el)));
+    el.querySelector(".back").addEventListener("click", () => play(song, el, Math.max(0, song.start - 5)));
+    for (const [input, key] of [[startIn, "start"], [endIn, "end"]]) {
+      input.addEventListener("change", () => {
+        const v = input.value === "" ? null : Number(input.value);
+        song[key] = v;
+        save(song); update();
+      });
+    }
+    for (const [cls, v] of [["ok", "ok"], ["bad", "bad"]]) {
+      el.querySelector(`.v.${cls}`).addEventListener("click", () => { song.verdict = song.verdict === v ? undefined : v; save(song); update(); });
+    }
+    update();
+    return el;
+  }
+
+  const list = document.getElementById("list");
+  if (!songs.length) list.innerHTML = '<p class="missing">Nu găsesc data.js. Rulează mai întâi: npm run chorus:propose</p>';
+  songs.forEach((s) => list.appendChild(render(s)));
+  renderStats();
+  document.getElementById("stop").addEventListener("click", stop);
+  document.getElementById("copy").addEventListener("click", async (e) => {
+    const out = songs.map((s) => ({ id: s.id, start: s.start, end: s.end, verdict: s.verdict ?? null }));
+    const text = JSON.stringify(out);
+    try { await navigator.clipboard.writeText(text); e.target.textContent = "Copiat ✓"; }
+    catch { prompt("Copiază de aici:", text); }
+    setTimeout(() => (e.target.textContent = "Copiază rezultatul"), 2000);
+  });
+</script>
+</body>
+</html>

@@ -22,7 +22,7 @@ export type GameState = {
     audioUrl?: string | null; // null = deblocat, dar fragmentul nu există încă
   };
   /** Doar după finalul jocului. */
-  answer?: { title: string; artist: string; youtubeUrl: string | null };
+  answer?: { title: string; artist: string; youtubeUrl: string | null; chorusUrl: string | null };
 };
 
 export type GuessResponse = { ok: true; state: GameState } | { ok: false; error: string };

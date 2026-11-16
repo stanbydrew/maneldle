@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 !.env.example
+
+# propuneri de refren (audio local, nu se urcă)
+/.chorus-review/

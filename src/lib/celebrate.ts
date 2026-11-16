@@ -3,9 +3,9 @@
 import confetti from "canvas-confetti";
 import { getSoundSettings } from "@/lib/sound-settings";
 
-// Efectele de final de încercare: la victorie confetti + o bucată de manea,
-// la pierdere altă bucată (fișiere din public/sounds), iar la o încercare
-// greșită un „bonk” sintetizat cu Web Audio.
+// Efectele de final de încercare: la victorie confetti + refrenul piesei ghicite
+// (sau, dacă piesa n-are refren, o bucată de manea din public/sounds), la pierdere
+// altă bucată, iar la o încercare greșită un „bonk” sintetizat cu Web Audio.
 
 const WIN_SOUND = "/sounds/win.mp3";
 const LOSE_SOUND = "/sounds/lose.mp3";
@@ -26,7 +26,7 @@ function getSound(src: string) {
   return audio;
 }
 
-function playFile(src: string) {
+function playFile(src: string, fallback?: string) {
   const settings = getSoundSettings();
   if (settings.effectsMuted) return;
   // Oprim fragmentul-indiciu, dacă rulează, ca să nu se suprapună.
@@ -34,15 +34,20 @@ function playFile(src: string) {
   const audio = getSound(src);
   audio.volume = settings.clipVolume;
   audio.currentTime = 0;
-  audio.play().catch(() => {}); // browserul poate bloca redarea; nu e grav
+  audio.play().catch((err: unknown) => {
+    // Refrenul nu s-a putut încărca (rețea, link expirat): cântăm sunetul de rezervă.
+    // Dacă browserul a blocat redarea (NotAllowedError), nu insistăm.
+    if (fallback && !(err instanceof DOMException && err.name === "NotAllowedError")) playFile(fallback);
+  });
 }
 
 const COLORS = ["#f5c542", "#ffffff", "#ff4fa3", "#8b5cf6", "#4ade80"];
 
-/** Victorie: confetti + manea de victorie. */
-export function celebrate() {
+/** Victorie: confetti + refrenul piesei ghicite (sau maneaua de victorie, dacă nu are). */
+export function celebrate(chorusUrl?: string | null) {
   launchConfetti();
-  playFile(WIN_SOUND);
+  if (chorusUrl) playFile(chorusUrl, WIN_SOUND);
+  else playFile(WIN_SOUND);
 }
 
 /** Încercare greșită, dar jocul continuă: un „bonk” scurt. */

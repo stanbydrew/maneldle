@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "clips": "node --env-file=.env.local scripts/make-clips.mjs"
+    "clips": "node --env-file=.env.local scripts/make-clips.mjs",
+    "chorus:propose": "node --env-file=.env.local scripts/chorus-proposals.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

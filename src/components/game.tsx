@@ -42,7 +42,7 @@ export function Game({ initialState, songs }: Props) {
 
       // Efectele apar doar în momentul răspunsului, nu când reîncarci o zi terminată.
       const { status } = result.state;
-      if (status === "won") celebrate();
+      if (status === "won") celebrate(result.state.answer?.chorusUrl);
       else if (status === "lost") lossFeedback();
       else if (songId !== SKIP_ID) wrongGuessFeedback();
       if (status !== "playing") setJustFinished(true);

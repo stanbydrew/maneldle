@@ -13,6 +13,7 @@ type SongRow = {
   literary_comment: string;
   youtube_url: string | null;
   audio_path: string | null;
+  chorus_path: string | null;
 };
 
 type PlayRow = {
@@ -211,7 +212,7 @@ async function puzzleSong(date: string): Promise<SongRow | null> {
   const { data, error } = await createAdminClient()
     .from("daily_puzzles")
     .select(
-      "song:songs!inner (id, title, artist, obscure_lyric, literary_comment, youtube_url, audio_path)",
+      "song:songs!inner (id, title, artist, obscure_lyric, literary_comment, youtube_url, audio_path, chorus_path)",
     )
     .eq("puzzle_date", date)
     .maybeSingle();
@@ -231,7 +232,12 @@ async function buildState(date: string, song: SongRow, play: PlayRow | null): Pr
   const hints: GameState["hints"] = { lyric: song.obscure_lyric };
   if (unlocked >= 2) hints.artist = song.artist;
   if (unlocked >= 3) hints.comment = song.literary_comment;
-  if (unlocked >= 4) hints.audioUrl = await signedClipUrl(song.audio_path);
+  // Refrenul pleacă doar după final: înainte ar da răspunsul.
+  const [audioUrl, chorusUrl] = await Promise.all([
+    unlocked >= 4 ? signedClipUrl(song.audio_path) : undefined,
+    finished ? signedClipUrl(song.chorus_path) : null,
+  ]);
+  if (audioUrl !== undefined) hints.audioUrl = audioUrl;
 
   return {
     date,
@@ -245,7 +251,7 @@ async function buildState(date: string, song: SongRow, play: PlayRow | null): Pr
     })),
     hints,
     answer: finished
-      ? { title: song.title, artist: song.artist, youtubeUrl: song.youtube_url }
+      ? { title: song.title, artist: song.artist, youtubeUrl: song.youtube_url, chorusUrl }
       : undefined,
   };
 }
