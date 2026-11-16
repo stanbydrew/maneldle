@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
+import { LoadingBar } from "@/components/loading-bar";
 
 const LINKS = [
   { href: "/", label: "Azi" },
@@ -66,9 +67,5 @@ function isActive(href: string, pathname: string | null) {
 
 /** Bară care se plimbă în partea de jos a tab-ului cât timp se încarcă pagina. */
 function PendingBar() {
-  return (
-    <span aria-hidden className="pointer-events-none absolute inset-x-2 bottom-0.5 h-0.5 overflow-hidden rounded-full">
-      <span className="nav-pending-bar block h-full w-1/3 rounded-full bg-accent-foreground/70" />
-    </span>
-  );
+  return <LoadingBar className="absolute inset-x-2 bottom-0.5 text-accent-foreground/70" />;
 }

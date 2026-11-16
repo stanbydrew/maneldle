@@ -9,10 +9,11 @@ const nextConfig: NextConfig = {
   // butoanele nu răspund.
   allowedDevOrigins: ["192.168.*.*"],
   experimental: {
-    // Paginile vizitate rămân în memoria browserului 60s: revenirea pe un tab
-    // e instantă. Orice încercare (guessAction → updateTag) golește memoria,
-    // deci progresul nu apare niciodată învechit.
-    staleTimes: { dynamic: 60 },
+    // Paginile vizitate rămân în memoria browserului 5 minute: revenirea pe un
+    // tab e instantă. Orice încercare (guessAction → updateTag) golește memoria,
+    // deci progresul tău nu apare niciodată învechit; scorurile altora pot
+    // întârzia până la 5 minute (un refresh le aduce imediat).
+    staleTimes: { dynamic: 300 },
   },
   turbopack: {
     rules: {

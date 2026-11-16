@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { BlockSkeleton } from "@/components/loading-bar";
 import { requireUser } from "@/lib/auth";
 import { serverEnv } from "@/lib/env";
 import { todayRo } from "@/lib/game";
@@ -9,7 +10,7 @@ export const metadata = { title: "Clasament · Maneldle" };
 export default function LeaderboardPage() {
   return (
     <section className="flex flex-col gap-4">
-      <Suspense fallback={<TableSkeleton />}>
+      <Suspense fallback={<BlockSkeleton />}>
         <Leaderboard />
       </Suspense>
       <p className="text-center text-xs leading-relaxed text-muted">
@@ -36,7 +37,7 @@ async function Leaderboard() {
     );
   }
 
-  const rows = await getLeaderboard(today);
+  const rows = await getLeaderboard();
 
   return (
     <div className="overflow-hidden rounded-xl border border-border">
@@ -85,8 +86,4 @@ function formatDate(date: string) {
   return new Intl.DateTimeFormat("ro-RO", { day: "numeric", month: "long", timeZone: "UTC" }).format(
     new Date(`${date}T00:00:00Z`),
   );
-}
-
-function TableSkeleton() {
-  return <div className="h-64 animate-pulse rounded-xl bg-surface" aria-hidden />;
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { BlockSkeleton } from "@/components/loading-bar";
 import { requireUser } from "@/lib/auth";
 import { listArchive, todayRo, type ArchiveEntry } from "@/lib/game";
 import { MAX_GUESSES } from "@/lib/game-types";
@@ -12,7 +13,7 @@ export default function ArchivePage() {
       <p className="text-center text-sm text-muted">
         Ai ratat o zi? O poți juca aici, dar nu aduce puncte.
       </p>
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface" aria-hidden />}>
+      <Suspense fallback={<BlockSkeleton />}>
         <ArchiveList />
       </Suspense>
     </section>

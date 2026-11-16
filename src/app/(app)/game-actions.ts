@@ -3,7 +3,6 @@
 import { updateTag } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { GameError, playsTag, submitGuess } from "@/lib/game";
-import { LEADERBOARD_TAG } from "@/lib/leaderboard";
 import { LIMITS, TOO_MANY_REQUESTS, withinLimit } from "@/lib/rate-limit";
 import type { GuessResponse } from "@/lib/game-types";
 
@@ -24,11 +23,9 @@ export async function guessAction(date: unknown, songId: unknown): Promise<Guess
 
   try {
     const state = await submitGuess(user.id, date, id);
-    // Progresul userului s-a schimbat: invalidăm arhiva lui (și, odată cu ea,
-    // paginile ținute în memorie de browser). Clasamentul se schimbă doar
-    // când se termină o zi jucată la timp.
+    // Progresul userului s-a schimbat: invalidăm arhiva lui și, odată cu ea,
+    // paginile ținute în memorie de browser (inclusiv clasamentul).
     updateTag(playsTag(user.id));
-    if (state.status !== "playing" && !state.isLate) updateTag(LEADERBOARD_TAG);
     return { ok: true, state };
   } catch (error) {
     if (error instanceof GameError) return { ok: false, error: error.message };
