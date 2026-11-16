@@ -2,13 +2,9 @@
 
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { SongOption } from "@/lib/game-types";
+import { normalize } from "@/lib/text";
 
 const MAX_SUGGESTIONS = 8;
-
-/** „Sărăcie” → „saracie”: căutare fără diacritice și fără majuscule. */
-function normalize(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
-}
 
 type Props = {
   songs: SongOption[];

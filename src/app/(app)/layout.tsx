@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { DedicationsLink } from "@/components/dedications-link";
 import { MainNav } from "@/components/main-nav";
 import { SoundToggle } from "@/components/sound-toggle";
 import { requireUser } from "@/lib/auth";
@@ -16,6 +17,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             Manel<span className="text-accent">dle</span>
           </Link>
           <div className="flex items-center gap-3">
+            <DedicationsLink />
             <SoundToggle />
             <Suspense fallback={<span className="h-5 w-24 animate-pulse rounded bg-surface" />}>
               <UserMenu />
@@ -34,7 +36,7 @@ async function UserMenu() {
   const user = await requireUser();
   return (
     <form action={logout} className="flex items-center gap-3 text-sm">
-      <span className="text-muted">{user.username}</span>
+      <span className="max-w-24 truncate text-muted sm:max-w-40">{user.username}</span>
       <button type="submit" className="text-accent underline-offset-4 hover:underline">
         Ieși
       </button>

@@ -10,6 +10,8 @@ export const LIMITS = {
   loginPerUsername: { max: 10, windowSeconds: 15 * 60 },
   registerPerIp: { max: 5, windowSeconds: 60 * 60 },
   guessPerUser: { max: 30, windowSeconds: 60 },
+  dedicationPerUser: { max: 10, windowSeconds: 60 * 60 },
+  votePerUser: { max: 60, windowSeconds: 60 },
 } satisfies Record<string, Limit>;
 
 export const TOO_MANY_REQUESTS = "Prea multe încercări. Mai așteaptă puțin și încearcă din nou.";
