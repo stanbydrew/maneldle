@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { GameState } from "@/lib/game-types";
+import { releaseMedia } from "@/lib/media";
 import { updateSoundSettings, useSoundSettings } from "@/lib/sound-settings";
 import { SpeakerIcon, SpeakerOffIcon } from "./sound-toggle";
 
@@ -84,6 +85,15 @@ function AudioClip({ url }: { url: string | null }) {
     if (audioRef.current) audioRef.current.volume = clipVolume;
   }, [clipVolume, url]);
 
+  // Sursa e pusă din cod, nu ca prop, ca s-o putem scoate după redare (vezi media.ts)
+  // și pune la loc la următorul play. La ieșirea din pagină, elementul e eliberat.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !url) return;
+    audio.src = url;
+    return () => releaseMedia(audio);
+  }, [url]);
+
   function setVolume(volume: number) {
     if (volume > 0) setLastVolume(volume);
     updateSoundSettings({ clipVolume: volume });
@@ -112,7 +122,8 @@ function AudioClip({ url }: { url: string | null }) {
       audio.pause();
       return;
     }
-    if (audio.ended || progress >= 1) audio.currentTime = 0;
+    if (!audio.hasAttribute("src")) audio.src = url!; // eliberat după ultima redare
+    else if (audio.ended || progress >= 1) audio.currentTime = 0;
     audio.volume = clipVolume;
     setStatus("loading");
     try {
@@ -183,17 +194,18 @@ function AudioClip({ url }: { url: string | null }) {
 
       <audio
         ref={audioRef}
-        src={url}
         preload="auto"
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 5)}
         onWaiting={() => setStatus("loading")}
         onPlaying={() => setStatus("playing")}
         onPause={() => setStatus((s) => (s === "error" ? s : "paused"))}
-        onEnded={() => {
+        onEnded={(e) => {
           setProgress(1);
           setStatus("idle");
+          releaseMedia(e.currentTarget);
         }}
-        onError={() => setStatus("error")}
+        // Fără sursă (eliberat intenționat) nu e o eroare.
+        onError={(e) => e.currentTarget.hasAttribute("src") && setStatus("error")}
       />
     </div>
   );

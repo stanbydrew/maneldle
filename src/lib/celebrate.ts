@@ -1,6 +1,7 @@
 "use client";
 
 import confetti from "canvas-confetti";
+import { releaseMedia, trackMedia, untrackMedia } from "@/lib/media";
 import { getSoundSettings } from "@/lib/sound-settings";
 
 // Efectele de final de încercare: la victorie confetti + refrenul piesei ghicite
@@ -17,12 +18,21 @@ export function preloadEndSounds() {
 }
 
 function getSound(src: string) {
-  let audio = sounds.get(src);
-  if (!audio) {
-    audio = new Audio(src);
-    audio.preload = "auto";
-    sounds.set(src, audio);
-  }
+  const existing = sounds.get(src);
+  // Un element eliberat (vezi media.ts) nu mai are sursă: îl refacem.
+  if (existing?.hasAttribute("src")) return existing;
+
+  const audio = new Audio(src);
+  audio.preload = "auto";
+  sounds.set(src, audio);
+  trackMedia(audio);
+  // Sunetele de final se aud o singură dată: după ce se termină, le eliberăm,
+  // ca să nu rămână în widget-ul „Now Playing” de pe iPhone.
+  audio.addEventListener("ended", () => {
+    releaseMedia(audio);
+    untrackMedia(audio);
+    if (sounds.get(src) === audio) sounds.delete(src);
+  });
   return audio;
 }
 
