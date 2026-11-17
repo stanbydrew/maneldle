@@ -115,6 +115,28 @@ export async function listArchive(userId: string, today: string): Promise<Archiv
   });
 }
 
+/**
+ * A terminat userul (ghicit sau pierdut) piesa de azi? Fără puzzle azi (nicio
+ * piesă activă) nu e nimic de ascuns, deci răspunsul e „da”.
+ */
+export async function hasFinishedToday(userId: string): Promise<boolean> {
+  let date: string;
+  try {
+    date = await getTodayPuzzleDate();
+  } catch (error) {
+    if (error instanceof GameError) return true;
+    throw error;
+  }
+  const { data, error } = await createAdminClient()
+    .from("plays")
+    .select("finished")
+    .eq("user_id", userId)
+    .eq("puzzle_date", date)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.finished === true;
+}
+
 export async function getGameState(userId: string, date: string): Promise<GameState> {
   const { song, play } = await loadGame(userId, date);
   return buildState(date, song, play);

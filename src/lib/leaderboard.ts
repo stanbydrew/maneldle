@@ -36,9 +36,9 @@ export async function getLeaderboard(): Promise<LeaderboardRow[]> {
 
   let rank = 0;
   let previous: Row | null = null;
-  return (data as Row[]).map((row, index) => {
+  return (data as Row[]).map((row) => {
     const tied = previous && previous.solved === row.solved && previous.points === row.points;
-    if (!tied) rank = index + 1;
+    if (!tied) rank += 1; // egalii împart locul, următorul ia locul imediat următor (1 2 3 4 4 4 5)
     previous = row;
     return {
       rank,
