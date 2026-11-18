@@ -3,13 +3,9 @@
 import { refresh } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { createRequest, DedicationError, vote } from "@/lib/dedications";
-import { hasFinishedToday } from "@/lib/game";
 import { LIMITS, TOO_MANY_REQUESTS, withinLimit } from "@/lib/rate-limit";
 
 export type DedicationFormState = { ok?: string; error?: string };
-
-// Până termină piesa zilei, Dedicațiile ar putea da indicii (ce piese are un artist în joc).
-const LOCKED_MESSAGE = "Termină mai întâi piesa de azi, apoi poți trimite dedicații.";
 
 const YOUTUBE_URL = /^https:\/\/(www\.|m\.|music\.)?(youtube\.com\/(watch\?|shorts\/)|youtu\.be\/)\S+$/;
 
@@ -21,7 +17,6 @@ function field(input: unknown, name: string) {
 export async function requestSongAction(input: unknown): Promise<DedicationFormState> {
   const user = await getCurrentUser();
   if (!user) return { error: "Sesiunea a expirat. Intră din nou în cont." };
-  if (!(await hasFinishedToday(user.id))) return { error: LOCKED_MESSAGE };
 
   const title = field(input, "title");
   const artist = field(input, "artist");
@@ -57,7 +52,6 @@ export async function requestSongAction(input: unknown): Promise<DedicationFormS
 export async function voteAction(requestId: unknown, on: unknown): Promise<{ error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { error: "Sesiunea a expirat. Intră din nou în cont." };
-  if (!(await hasFinishedToday(user.id))) return { error: LOCKED_MESSAGE };
   const id = Number(requestId);
   if (!Number.isSafeInteger(id) || id <= 0 || typeof on !== "boolean") return { error: "Cerere invalidă." };
   if (!(await withinLimit(`vote:user:${user.id}`, LIMITS.votePerUser))) return { error: TOO_MANY_REQUESTS };

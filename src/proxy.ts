@@ -58,6 +58,6 @@ function redirectPreservingCookies(request: NextRequest, from: NextResponse, pat
 export const config = {
   matcher: [
     // Totul în afară de API, fișiere statice și imagini.
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp3)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp3|woff2)$).*)",
   ],
 };

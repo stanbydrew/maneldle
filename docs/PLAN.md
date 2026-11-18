@@ -4,16 +4,18 @@ Un Wordle cu manele pentru grupul de prieteni. În fiecare zi, toată lumea are 
 
 ## Jocul
 
-Ai 4 încercări. După fiecare greșeală se deblochează următorul indiciu:
+Ai 5 încercări. După fiecare greșeală se deblochează următorul indiciu:
 
-| Încercarea | Ce vezi |
-|---|---|
-| 1 | Un vers obscur din piesă (nu din refren) |
-| 2 | + numele cântărețului |
-| 3 | + un „comentariu literar” (amuzant) despre mesajul piesei |
-| 4 | + un fragment audio (intervalul ales pentru fiecare piesă) |
+| Încercarea | Ce vezi | Coloana |
+|---|---|---|
+| 1 | Un vers obscur din piesă (nu din refren) | `obscure_lyric` |
+| 2 | + un „comentariu literar” (amuzant) despre mesajul piesei | `literary_comment` |
+| 3 | + titlul în emoji | `emoji_hint` |
+| 4 | + un fragment audio (intervalul ales pentru fiecare piesă) | `audio_path` |
+| 5 | + un vers din refren, fără titlu în el | `chorus_lyric` |
 
-- Răspunsul se alege dintr-un **autocomplete** care afișează doar titlurile. Dacă ar afișa și artistul, ar strica indiciul 2.
+- Răspunsul se alege dintr-un **autocomplete** cu titlu și artist (se poate căuta după amândouă). Artistul nu e indiciu.
+- Puncte: 5 / 4 / 3 / 2 / 1 după încercarea la care ai ghicit.
 - La final (ghicit sau nu) apar titlul, artistul și linkul de YouTube.
 - **Arhivă:** zilele trecute se pot juca, dar nu aduc puncte (`is_late`).
 - **Share:** rezultatul se copiază ca emoji (🟥🟥🟩⬛) pentru chat-ul grupului.

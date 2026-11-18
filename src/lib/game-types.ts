@@ -1,11 +1,11 @@
 // Tipuri partajate între server și browser. Fără `server-only`.
 
-export const MAX_GUESSES = 4;
+export const MAX_GUESSES = 5;
 
 /** Id-ul folosit pentru „Sari peste”: consumă o încercare și deblochează indiciul următor. */
 export const SKIP_ID = 0;
 
-export type SongOption = { id: number; title: string };
+export type SongOption = { id: number; title: string; artist: string };
 
 export type GuessResult = { songId: number; title: string; correct: boolean; skipped: boolean };
 
@@ -17,9 +17,10 @@ export type GameState = {
   /** Doar indiciile deblocate. Restul nu pleacă de pe server. */
   hints: {
     lyric: string;
-    artist?: string;
-    comment?: string;
-    audioUrl?: string | null; // null = deblocat, dar fragmentul nu există încă
+    comment?: string; // 2
+    emoji?: string | null; // 3 (null = deblocat, dar încă necompletat)
+    audioUrl?: string | null; // 4 (null = deblocat, dar fragmentul nu există încă)
+    chorusLyric?: string | null; // 5
   };
   /** Doar după finalul jocului. */
   answer?: { title: string; artist: string; youtubeUrl: string | null; chorusUrl: string | null };

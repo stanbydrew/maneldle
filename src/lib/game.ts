@@ -11,6 +11,8 @@ type SongRow = {
   artist: string;
   obscure_lyric: string;
   literary_comment: string;
+  emoji_hint: string | null;
+  chorus_lyric: string | null;
   youtube_url: string | null;
   audio_path: string | null;
   chorus_path: string | null;
@@ -66,7 +68,7 @@ export function playsTag(userId: string) {
 }
 
 /**
- * Lista pentru autocomplete: doar id + titlu (artistul ar strica indiciul 2).
+ * Lista pentru autocomplete: titlu + artist (artistul nu e indiciu, se poate căuta după el).
  * Se schimbă doar când adaugi piese în DB, deci o ținem în cache câteva minute.
  */
 export async function listSongOptions(): Promise<SongOption[]> {
@@ -75,7 +77,7 @@ export async function listSongOptions(): Promise<SongOption[]> {
   cacheLife("minutes");
   const { data, error } = await createAdminClient()
     .from("songs")
-    .select("id, title")
+    .select("id, title, artist")
     .order("title");
   if (error) throw error;
   return data;
@@ -113,28 +115,6 @@ export async function listArchive(userId: string, today: string): Promise<Archiv
       isLate: play?.is_late ?? false,
     };
   });
-}
-
-/**
- * A terminat userul (ghicit sau pierdut) piesa de azi? Fără puzzle azi (nicio
- * piesă activă) nu e nimic de ascuns, deci răspunsul e „da”.
- */
-export async function hasFinishedToday(userId: string): Promise<boolean> {
-  let date: string;
-  try {
-    date = await getTodayPuzzleDate();
-  } catch (error) {
-    if (error instanceof GameError) return true;
-    throw error;
-  }
-  const { data, error } = await createAdminClient()
-    .from("plays")
-    .select("finished")
-    .eq("user_id", userId)
-    .eq("puzzle_date", date)
-    .maybeSingle();
-  if (error) throw error;
-  return data?.finished === true;
 }
 
 export async function getGameState(userId: string, date: string): Promise<GameState> {
@@ -234,7 +214,7 @@ async function puzzleSong(date: string): Promise<SongRow | null> {
   const { data, error } = await createAdminClient()
     .from("daily_puzzles")
     .select(
-      "song:songs!inner (id, title, artist, obscure_lyric, literary_comment, youtube_url, audio_path, chorus_path)",
+      "song:songs!inner (id, title, artist, obscure_lyric, literary_comment, emoji_hint, chorus_lyric, youtube_url, audio_path, chorus_path)",
     )
     .eq("puzzle_date", date)
     .maybeSingle();
@@ -252,8 +232,9 @@ async function buildState(date: string, song: SongRow, play: PlayRow | null): Pr
 
   const titles = await titlesById(guessIds);
   const hints: GameState["hints"] = { lyric: song.obscure_lyric };
-  if (unlocked >= 2) hints.artist = song.artist;
-  if (unlocked >= 3) hints.comment = song.literary_comment;
+  if (unlocked >= 2) hints.comment = song.literary_comment;
+  if (unlocked >= 3) hints.emoji = song.emoji_hint;
+  if (unlocked >= 5) hints.chorusLyric = song.chorus_lyric;
   // Refrenul pleacă doar după final: înainte ar da răspunsul.
   const [audioUrl, chorusUrl] = await Promise.all([
     unlocked >= 4 ? signedClipUrl(song.audio_path) : undefined,

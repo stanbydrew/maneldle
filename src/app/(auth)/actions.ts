@@ -1,6 +1,7 @@
 "use server";
 
 import { timingSafeEqual } from "node:crypto";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { serverEnv } from "@/lib/env";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -37,6 +38,7 @@ export async function login(_prev: AuthFormState, formData: FormData): Promise<A
     return { error: "Username sau parolă greșită.", username };
   }
 
+  forgetPreviousUser();
   redirect("/");
 }
 
@@ -112,13 +114,24 @@ export async function register(_prev: AuthFormState, formData: FormData): Promis
     redirect("/login");
   }
 
+  forgetPreviousUser();
   redirect("/");
 }
 
 export async function logout() {
   const supabase = await createSessionClient();
   await supabase.auth.signOut();
+  forgetPreviousUser();
   redirect("/login");
+}
+
+/**
+ * Golește paginile ținute în memoria browserului (până la 5 minute, vezi
+ * staleTimes în next.config.ts). Fără asta, după ce schimbi contul, tab-urile
+ * vizitate mai arată un timp jocul și arhiva contului anterior.
+ */
+function forgetPreviousUser() {
+  revalidatePath("/", "layout");
 }
 
 function isValidInviteCode(candidate: string): boolean {

@@ -1,12 +1,14 @@
 # Maneldle
 
-Un Wordle cu manele pentru grupul de prieteni. În fiecare zi, toată lumea ghicește aceeași piesă, cu 4 încercări și câte un indiciu nou după fiecare greșeală: vers, artist, comentariu literar și un fragment audio scurt.
+Un Wordle cu manele pentru grupul de prieteni. În fiecare zi, toată lumea ghicește aceeași piesă, cu 5 încercări și câte un indiciu nou după fiecare greșeală: vers, comentariu literar, titlul în emoji, un fragment audio scurt și un vers din refren.
 
 Planul complet și deciziile de design sunt în [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Stack
 
 Next.js 16 (App Router) · TypeScript · Tailwind · Supabase (Postgres, Auth, Storage)
+
+Steagurile emoji (pe Windows lipsesc din sistem) vin din fontul [Twemoji Country Flags](https://github.com/talkjs/country-flag-emoji-polyfill), grafică [Twemoji](https://github.com/jdecked/twemoji) sub licența CC-BY 4.0.
 
 ## Setup local
 

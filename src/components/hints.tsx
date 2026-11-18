@@ -6,7 +6,7 @@ import { releaseMedia } from "@/lib/media";
 import { updateSoundSettings, useSoundSettings } from "@/lib/sound-settings";
 import { SpeakerIcon, SpeakerOffIcon } from "./sound-toggle";
 
-const LABELS = ["Versul", "Artistul", "Comentariu literar", "Fragment audio"];
+const LABELS = ["Versul", "Comentariu literar", "Titlul în emoji", "Fragment audio", "Din refren"];
 
 type Props = {
   hints: GameState["hints"];
@@ -27,10 +27,21 @@ export function Hints({ hints, revealed }: Props) {
   }, [revealed]);
 
   const items = [
-    hints.lyric !== undefined && <blockquote className="text-lg italic leading-snug">„{hints.lyric}”</blockquote>,
-    hints.artist !== undefined && <p className="text-lg font-semibold">{hints.artist}</p>,
+    hints.lyric !== undefined && <blockquote className="whitespace-pre-line text-lg italic leading-snug">„{hints.lyric}”</blockquote>,
     hints.comment !== undefined && <p className="leading-relaxed">{hints.comment}</p>,
+    hints.emoji !== undefined &&
+      (hints.emoji ? (
+        <p className="text-3xl leading-snug tracking-wide">{hints.emoji}</p>
+      ) : (
+        <p className="text-sm text-muted">Indiciul ăsta nu e încă pregătit pentru piesa de azi.</p>
+      )),
     hints.audioUrl !== undefined && <AudioClip url={hints.audioUrl} />,
+    hints.chorusLyric !== undefined &&
+      (hints.chorusLyric ? (
+        <blockquote className="whitespace-pre-line text-lg italic leading-snug">„{hints.chorusLyric}”</blockquote>
+      ) : (
+        <p className="text-sm text-muted">Indiciul ăsta nu e încă pregătit pentru piesa de azi.</p>
+      )),
   ];
 
   return (

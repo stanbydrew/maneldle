@@ -14,7 +14,7 @@ export default function LeaderboardPage() {
         <Leaderboard />
       </Suspense>
       <p className="text-center text-xs leading-relaxed text-muted">
-        Ordonat după piese ghicite, apoi după puncte: 4 din prima, 3 din a doua, 2 din a treia, 1 din a patra.
+        Ordonat după piese ghicite, apoi după puncte: 5 din prima, 4 din a doua, 3 din a treia, 2 din a patra, 1 din a cincea.
         <br />
         Zilele ratate contează. Arhiva nu aduce puncte.
       </p>

@@ -1,9 +1,7 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { BlockSkeleton } from "@/components/loading-bar";
 import { requireUser } from "@/lib/auth";
 import { listCatalog, listRequests, type SongRequest } from "@/lib/dedications";
-import { hasFinishedToday } from "@/lib/game";
 import { Catalog } from "./catalog";
 import { DedicationForm } from "./dedication-form";
 import { VoteButton } from "./vote-button";
@@ -27,15 +25,8 @@ export default function DedicatiiPage() {
   );
 }
 
-/**
- * Totul stă în spatele piesei zilei: lista cu artiști (și verificarea „e deja în
- * joc”) ar spune ce piese are un artist, adică ar da răspunsul după indiciul 2.
- * Acțiunile verifică și ele, separat, pe server.
- */
 async function Dedications() {
   const user = await requireUser();
-  if (!(await hasFinishedToday(user.id))) return <Locked />;
-
   const [requests, catalog] = await Promise.all([listRequests(user.id), listCatalog()]);
   return (
     <>
@@ -43,27 +34,6 @@ async function Dedications() {
       <Requests requests={requests} />
       <Catalog songs={catalog} />
     </>
-  );
-}
-
-function Locked() {
-  return (
-    <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border p-8 text-center">
-      <span className="text-4xl" aria-hidden>
-        🔒
-      </span>
-      <p className="text-muted">
-        Termină mai întâi piesa de azi, ghicită sau nu.
-        <br />
-        Apoi se deschid Dedicațiile.
-      </p>
-      <Link
-        href="/"
-        className="rounded-lg bg-accent px-5 py-2.5 font-semibold text-accent-foreground transition hover:brightness-110"
-      >
-        La piesa de azi
-      </Link>
-    </div>
   );
 }
 

@@ -4,7 +4,7 @@ import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { SongOption } from "@/lib/game-types";
 import { normalize } from "@/lib/text";
 
-const MAX_SUGGESTIONS = 8;
+const MAX_SUGGESTIONS = 12; // un artist poate avea ~10 piese în listă
 
 type Props = {
   songs: SongOption[];
@@ -24,15 +24,19 @@ export function SongAutocomplete({ songs, excludeIds, disabled, onSubmit, onSkip
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
 
-  const indexed = useMemo(() => songs.map((s) => ({ ...s, key: normalize(s.title) })), [songs]);
+  // Se caută în titlu și în artist; titlurile care încep cu textul căutat apar primele.
+  const indexed = useMemo(
+    () => songs.map((s) => ({ ...s, key: normalize(s.title), artistKey: normalize(s.artist) })),
+    [songs],
+  );
 
   const suggestions = useMemo(() => {
     const q = normalize(query);
     if (!q) return [];
     const excluded = new Set(excludeIds);
-    const matches = indexed.filter((s) => !excluded.has(s.id) && s.key.includes(q));
-    // Titlurile care încep cu textul căutat apar primele.
-    matches.sort((a, b) => Number(b.key.startsWith(q)) - Number(a.key.startsWith(q)));
+    const matches = indexed.filter((s) => !excluded.has(s.id) && (s.key.includes(q) || s.artistKey.includes(q)));
+    const rank = (s: (typeof indexed)[number]) => (s.key.startsWith(q) ? 0 : s.key.includes(q) ? 1 : 2);
+    matches.sort((a, b) => rank(a) - rank(b));
     return matches.slice(0, MAX_SUGGESTIONS);
   }, [indexed, excludeIds, query]);
 
@@ -83,7 +87,7 @@ export function SongAutocomplete({ songs, excludeIds, disabled, onSubmit, onSkip
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={showList ? `${listId}-${active}` : undefined}
-          placeholder="Caută titlul piesei…"
+          placeholder="Caută după titlu sau artist…"
           value={query}
           disabled={disabled}
           autoComplete="off"
@@ -119,7 +123,8 @@ export function SongAutocomplete({ songs, excludeIds, disabled, onSubmit, onSkip
                 onMouseEnter={() => setActive(i)}
                 className={`cursor-pointer px-3 py-2 ${i === active ? "bg-accent/15 text-accent" : ""}`}
               >
-                {song.title}
+                <span className="block truncate">{song.title}</span>
+                <span className={`block truncate text-xs ${i === active ? "text-accent/70" : "text-muted"}`}>{song.artist}</span>
               </li>
             ))}
           </ul>
