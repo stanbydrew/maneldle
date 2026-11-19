@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { LeaderboardBoard } from "@/components/leaderboard-board";
 import { BlockSkeleton } from "@/components/loading-bar";
 import { requireUser } from "@/lib/auth";
 import { serverEnv } from "@/lib/env";
@@ -13,11 +14,6 @@ export default function LeaderboardPage() {
       <Suspense fallback={<BlockSkeleton />}>
         <Leaderboard />
       </Suspense>
-      <p className="text-center text-xs leading-relaxed text-muted">
-        Ordonat după piese ghicite, apoi după puncte: 5 din prima, 4 din a doua, 3 din a treia, 2 din a patra, 1 din a cincea.
-        <br />
-        Zilele ratate contează. Arhiva nu aduce puncte.
-      </p>
     </section>
   );
 }
@@ -38,48 +34,7 @@ async function Leaderboard() {
   }
 
   const rows = await getLeaderboard();
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-border">
-      <table className="w-full text-sm">
-        <thead className="bg-surface text-xs uppercase tracking-wider text-muted">
-          <tr>
-            <th scope="col" className="w-10 py-3 pl-3 text-left">#</th>
-            <th scope="col" className="py-3 text-left">Jucător</th>
-            <th scope="col" className="py-3 text-right" title="Ghicite / zile totale">Ghicite</th>
-            <th scope="col" className="py-3 text-right" title="Puncte">Pct</th>
-            <th scope="col" className="py-3 pr-3 text-right" title="Ghicite din prima încercare">🔥</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const isMe = row.userId === user.id;
-            return (
-              <tr
-                key={row.userId}
-                className={`border-t border-border ${isMe ? "bg-accent/10" : ""}`}
-              >
-                <td className="py-3 pl-3 font-mono text-muted">{medal(row.rank)}</td>
-                <td className={`py-3 ${isMe ? "font-semibold text-accent" : ""}`}>
-                  {row.username}
-                </td>
-                <td className="py-3 text-right font-mono">
-                  {row.solved}
-                  <span className="text-muted">/{row.totalDays}</span>
-                </td>
-                <td className="py-3 text-right font-mono font-semibold">{row.points}</td>
-                <td className="py-3 pr-3 text-right font-mono text-muted">{row.firstTry}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function medal(rank: number) {
-  return ["🥇", "🥈", "🥉"][rank - 1] ?? rank;
+  return <LeaderboardBoard rows={rows} meId={user.id} />;
 }
 
 function formatDate(date: string) {
