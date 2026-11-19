@@ -44,3 +44,6 @@ next-env.d.ts
 
 # propuneri de refren (audio local, nu se urcă)
 /.chorus-review/
+
+# piese noi de la Dedicații, în lucru (ciorne locale)
+/.song-intake/

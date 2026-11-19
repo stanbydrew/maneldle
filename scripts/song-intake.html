@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Piese noi Maneldle</title>
+<style>
+  :root { --bg:#120d1a; --surface:#1d1529; --field:#0c0912; --border:#3a2d4d; --fg:#f3eefa; --muted:#a598b8; --accent:#f5c542; --ok:#4ade80; --bad:#ff6b6b; --warn:#fb923c; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 120px; }
+  h1 { margin:0 0 4px; font-size:24px; } h1 span { color:var(--accent); }
+  .help { color:var(--muted); margin:0 0 16px; font-size:14px; }
+  .bar { position:sticky; top:0; z-index:5; display:flex; gap:12px; align-items:center; padding:10px 0; background:var(--bg); border-bottom:1px solid var(--border); margin-bottom:16px; font-size:14px; color:var(--muted); }
+  .bar b { color:var(--fg); }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--fg); padding:6px 12px; }
+  button:hover { border-color:var(--accent); }
+  button.small { padding:3px 9px; font-size:13px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:10px; }
+  .card.ready { border-color:color-mix(in srgb, var(--ok) 60%, transparent); }
+  .summary { display:flex; gap:12px; align-items:center; padding:12px 14px; cursor:pointer; }
+  .votes { font-family:ui-monospace, monospace; font-weight:700; color:var(--accent); min-width:36px; }
+  .who { min-width:0; flex:1; }
+  .who b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .who span { color:var(--muted); font-size:13px; }
+  .badge { font-size:12px; font-weight:600; border-radius:999px; padding:2px 10px; white-space:nowrap; }
+  .badge.todo { background:var(--field); color:var(--muted); }
+  .badge.wip { background:color-mix(in srgb, var(--warn) 20%, transparent); color:var(--warn); }
+  .badge.ready { background:color-mix(in srgb, var(--ok) 20%, transparent); color:var(--ok); }
+  .editor { border-top:1px solid var(--border); padding:14px; display:flex; flex-direction:column; gap:16px; }
+  fieldset { border:1px solid var(--border); border-radius:10px; padding:12px; margin:0; display:flex; flex-direction:column; gap:8px; }
+  legend { color:var(--accent); font-weight:600; font-size:13px; padding:0 6px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  @media (max-width:600px) { .grid2 { grid-template-columns:1fr; } }
+  label { color:var(--muted); font-size:13px; display:flex; flex-direction:column; gap:4px; }
+  input, textarea { font:inherit; background:var(--field); color:var(--fg); border:1px solid var(--border); border-radius:6px; padding:6px 8px; width:100%; }
+  input:focus, textarea:focus { outline:none; border-color:var(--accent); }
+  input.time { width:90px; font-family:ui-monospace, monospace; }
+  input.invalid { border-color:var(--bad); }
+  textarea { min-height:60px; resize:vertical; }
+  .note { color:var(--muted); font-size:12px; }
+  .orig { color:var(--muted); font-size:12px; word-break:break-all; }
+  .orig a, .yt-link { color:var(--accent); }
+  .player { aspect-ratio:16/9; width:100%; background:#000; border-radius:8px; overflow:hidden; }
+  .player > * { width:100%; height:100%; }
+  .noplayer { display:grid; place-items:center; height:100%; color:var(--muted); font-size:14px; }
+  .clock { font-family:ui-monospace, monospace; color:var(--muted); font-size:13px; }
+  .problems { margin:0; padding-left:18px; color:var(--warn); font-size:13px; }
+  .problems .bad { color:var(--bad); }
+  .footer { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .footer label { flex-direction:row; align-items:center; gap:8px; color:var(--fg); font-size:15px; }
+  .footer input[type=checkbox] { width:18px; height:18px; }
+  .saved { margin-left:auto; color:var(--muted); font-size:12px; }
+  .empty { text-align:center; color:var(--muted); padding:40px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Manel<span>dle</span> · piese noi</h1>
+  <p class="help">
+    Cererile de la Dedicații care nu sunt încă în joc, cele mai votate primele. Verifică linkul (să fie piesa originală),
+    corectează titlul și artistul, completează versurile și alege intervalele ascultând aici: <b>⟵ acum</b> pune
+    momentul curent din video, <b>▶</b> cântă intervalul. Timpii se scriu în secunde (<code>83.5</code>) sau
+    <code>1:23.5</code>. Totul se salvează singur. Comentariul literar și emoji-ul vin după.
+  </p>
+  <div class="bar"><span id="stats">Se încarcă…</span></div>
+  <div id="list"></div>
+</main>
+
+<script>
+  const AUDIO_DEFAULT = 5; // fără final, indiciul audio are 5s de la start (ca în make-clips.mjs)
+  const MAX_CLIP = 30;     // limita din baza de date, pentru ambele intervale
+
+  let requests = [];
+  let drafts = {};
+  let openId = null;
+  let player = null;
+  let playerReady = false;
+  let stopAt = null;
+  let ytApi = null;
+
+  // --- utilitare ---------------------------------------------------------
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+  function videoId(url) {
+    if (!url) return null;
+    try {
+      const u = new URL(url.trim());
+      const host = u.hostname.replace(/^(www|m|music)\./, "");
+      if (host === "youtu.be") return u.pathname.slice(1).split("/")[0] || null;
+      if (host === "youtube.com") {
+        if (u.pathname === "/watch") return u.searchParams.get("v");
+        const m = u.pathname.match(/^\/(shorts|embed|live)\/([^/?]+)/);
+        if (m) return m[2];
+      }
+    } catch {}
+    return null;
+  }
+
+  /** „83.5” sau „1:23.5” → 83.5. Gol → null. Invalid → NaN. */
+  function parseTime(text) {
+    const t = String(text ?? "").trim().replace(",", ".");
+    if (!t) return null;
+    const m = t.match(/^(?:(\d+):)?(\d+(?:\.\d+)?)$/);
+    if (!m) return NaN;
+    const value = (m[1] ? Number(m[1]) * 60 : 0) + Number(m[2]);
+    if (m[1] && Number(m[2]) >= 60) return NaN;
+    return Math.round(value * 100) / 100;
+  }
+
+  function formatTime(sec) {
+    if (sec == null || Number.isNaN(sec)) return "";
+    const m = Math.floor(sec / 60);
+    const s = sec - m * 60;
+    const ss = (Math.round(s * 10) / 10).toFixed(1).padStart(4, "0");
+    return `${m}:${ss}`;
+  }
+
+  const normalize = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const words = (s) => new Set(normalize(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 3));
+
+  // --- date --------------------------------------------------------------
+
+  function draftFor(r) {
+    return drafts[r.id] ?? {
+      original: { title: r.title, artist: r.artist, youtubeUrl: r.youtubeUrl },
+      title: r.title,
+      artist: r.artist,
+      youtubeUrl: r.youtubeUrl ?? "",
+      obscureLyric: "",
+      audioStart: null,
+      audioEnd: null,
+      chorusLyric: "",
+      chorusStart: null,
+      chorusEnd: null,
+      notes: "",
+      ready: false,
+    };
+  }
+
+  /** Probleme: `bad` blochează „Gata”, celelalte sunt doar avertismente. */
+  function problems(d) {
+    const out = [];
+    const bad = (text) => out.push({ text, bad: true });
+    const warn = (text) => out.push({ text, bad: false });
+    if (!d.title.trim()) bad("Lipsește titlul.");
+    if (!d.artist.trim()) bad("Lipsește artistul.");
+    if (!videoId(d.youtubeUrl)) bad("Linkul YouTube lipsește sau nu e valid.");
+    if (!d.obscureLyric.trim()) bad("Lipsește versul obscur (indiciul 1).");
+    if (d.audioStart == null) bad("Lipsește începutul fragmentului audio (indiciul 4).");
+    if (Number.isNaN(d.audioStart) || Number.isNaN(d.audioEnd)) bad("Timp invalid la fragmentul audio.");
+    else if (d.audioEnd != null && d.audioStart != null) {
+      if (d.audioEnd <= d.audioStart) bad("Fragmentul audio: finalul trebuie să fie după început.");
+      else if (d.audioEnd - d.audioStart > MAX_CLIP) bad(`Fragmentul audio are peste ${MAX_CLIP}s.`);
+    }
+    if (!d.chorusLyric.trim()) bad("Lipsește versul din refren (indiciul 5).");
+    if (d.chorusStart == null || d.chorusEnd == null) bad("Lipsește intervalul refrenului de la victorie.");
+    else if (Number.isNaN(d.chorusStart) || Number.isNaN(d.chorusEnd)) bad("Timp invalid la refrenul de la victorie.");
+    else if (d.chorusEnd <= d.chorusStart) bad("Refrenul de la victorie: finalul trebuie să fie după început.");
+    else if (d.chorusEnd - d.chorusStart > MAX_CLIP) bad(`Refrenul de la victorie are peste ${MAX_CLIP}s.`);
+
+    const titleWords = words(d.title);
+    const leaks = (text) => [...words(text)].filter((w) => titleWords.has(w));
+    const inLyric = leaks(d.obscureLyric);
+    if (inLyric.length) warn(`Versul obscur conține cuvinte din titlu (${inLyric.join(", ")}): dă răspunsul din prima.`);
+    const inChorus = leaks(d.chorusLyric);
+    if (inChorus.length) warn(`Versul din refren conține cuvinte din titlu (${inChorus.join(", ")}): de obicei se înlocuiesc cu ____.`);
+    return out;
+  }
+
+  const started = (d) =>
+    d.obscureLyric || d.chorusLyric || d.audioStart != null || d.chorusStart != null || d.notes ||
+    d.title !== d.original.title || d.artist !== d.original.artist || (d.youtubeUrl || null) !== (d.original.youtubeUrl || null);
+
+  function status(r) {
+    const d = drafts[r.id];
+    if (!d) return "todo";
+    if (d.ready) return "ready";
+    return started(d) ? "wip" : "todo";
+  }
+
+  const saveTimers = {};
+  function save(id) {
+    clearTimeout(saveTimers[id]);
+    const el = document.querySelector(`[data-saved="${id}"]`);
+    if (el) el.textContent = "Se salvează…";
+    saveTimers[id] = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/drafts/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(drafts[id]) });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error);
+        drafts[id].savedAt = body.savedAt;
+        const el2 = document.querySelector(`[data-saved="${id}"]`);
+        if (el2) el2.textContent = `Salvat la ${new Date(body.savedAt).toLocaleTimeString("ro-RO")}`;
+      } catch (e) {
+        const el2 = document.querySelector(`[data-saved="${id}"]`);
+        if (el2) { el2.textContent = `Nu s-a salvat: ${e.message}`; el2.style.color = "var(--bad)"; }
+      }
+    }, 500);
+  }
+
+  // --- player YouTube ----------------------------------------------------
+
+  function loadYtApi() {
+    if (ytApi) return ytApi;
+    ytApi = new Promise((resolve) => {
+      window.onYouTubeIframeAPIReady = () => resolve(window.YT);
+      const s = document.createElement("script");
+      s.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(s);
+    });
+    return ytApi;
+  }
+
+  async function mountPlayer(container, id) {
+    destroyPlayer();
+    if (!id) { container.innerHTML = `<div class="noplayer">Pune un link YouTube valid ca să asculți.</div>`; return; }
+    container.innerHTML = "<div></div>";
+    const YT = await loadYtApi();
+    playerReady = false;
+    player = new YT.Player(container.firstElementChild, {
+      videoId: id,
+      playerVars: { rel: 0, modestbranding: 1 },
+      events: { onReady: () => { playerReady = true; } },
+    });
+  }
+
+  function destroyPlayer() {
+    stopAt = null;
+    if (player) { try { player.destroy(); } catch {} }
+    player = null;
+    playerReady = false;
+  }
+
+  function currentTime() {
+    return playerReady ? Math.round(player.getCurrentTime() * 10) / 10 : null;
+  }
+
+  function playRange(start, end) {
+    if (!playerReady || start == null || Number.isNaN(start)) return;
+    stopAt = end;
+    player.seekTo(start, true);
+    player.playVideo();
+  }
+
+  setInterval(() => {
+    if (!playerReady) return;
+    const t = player.getCurrentTime();
+    const clock = document.querySelector(".clock");
+    if (clock) clock.textContent = `acum ${formatTime(t)}`;
+    if (stopAt != null && t >= stopAt) { player.pauseVideo(); stopAt = null; }
+  }, 100);
+
+  // --- interfață ---------------------------------------------------------
+
+  function renderStats() {
+    const counts = { todo: 0, wip: 0, ready: 0 };
+    requests.forEach((r) => counts[status(r)]++);
+    document.getElementById("stats").innerHTML =
+      `<b>${requests.length}</b> cereri · <b>${counts.ready}</b> gata · <b>${counts.wip}</b> în lucru · <b>${counts.todo}</b> neîncepute`;
+  }
+
+  const BADGE = { todo: "neîncepută", wip: "în lucru", ready: "gata" };
+
+  function renderList() {
+    const list = document.getElementById("list");
+    if (requests.length === 0) {
+      list.innerHTML = `<p class="empty">Nicio cerere în așteptare care să nu fie deja în joc. 🎶</p>`;
+      renderStats();
+      return;
+    }
+    list.innerHTML = requests.map((r) => {
+      const d = draftFor(r);
+      const st = status(r);
+      return `
+        <div class="card ${st === "ready" ? "ready" : ""}" data-id="${r.id}">
+          <div class="summary">
+            <span class="votes">+${r.votes}</span>
+            <div class="who">
+              <b>${esc(d.title)}</b>
+              <span>${esc(d.artist)} · cerută de ${esc(r.requestedBy)}</span>
+            </div>
+            <span class="badge ${st}">${BADGE[st]}</span>
+          </div>
+          ${openId === r.id ? editorHtml(r, d) : ""}
+        </div>`;
+    }).join("");
+
+    list.querySelectorAll(".summary").forEach((el) => el.addEventListener("click", () => {
+      const id = Number(el.parentElement.dataset.id);
+      toggle(id);
+    }));
+    if (openId != null) wireEditor(requests.find((r) => r.id === openId));
+    renderStats();
+  }
+
+  function toggle(id) {
+    destroyPlayer();
+    openId = openId === id ? null : id;
+    renderList();
+    if (openId != null) document.querySelector(`[data-id="${openId}"]`).scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+
+  function timeField(name, value, label) {
+    return `
+      <span class="row" style="gap:4px">
+        <span class="note" style="min-width:42px">${label}</span>
+        <input class="time" data-time="${name}" value="${esc(formatTime(value))}" placeholder="0:00.0" />
+        <button class="small" data-now="${name}" title="Pune momentul curent din video">⟵ acum</button>
+      </span>`;
+  }
+
+  function editorHtml(r, d) {
+    const o = d.original;
+    const urlChanged = (d.youtubeUrl || null) !== (o.youtubeUrl || null);
+    return `
+      <div class="editor">
+        <fieldset>
+          <legend>Piesa</legend>
+          <div class="grid2">
+            <label>Titlu<input data-field="title" value="${esc(d.title)}" /></label>
+            <label>Artist / artiști<input data-field="artist" value="${esc(d.artist)}" /></label>
+          </div>
+          ${d.title !== o.title || d.artist !== o.artist ? `<span class="orig">Cerută ca: „${esc(o.title)}” · ${esc(o.artist)}</span>` : ""}
+          <label>Link YouTube<input data-field="youtubeUrl" value="${esc(d.youtubeUrl)}" placeholder="https://www.youtube.com/watch?v=…" /></label>
+          <span class="orig">
+            ${o.youtubeUrl ? `Link de la ${esc(r.requestedBy)}: <a href="${esc(o.youtubeUrl)}" target="_blank" rel="noopener noreferrer">${esc(o.youtubeUrl)}</a>` : `${esc(r.requestedBy)} n-a pus link.`}
+            ${urlChanged ? " · <b>l-ai schimbat</b>" : ""}
+            · <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(`${d.title} ${d.artist}`)}" target="_blank" rel="noopener noreferrer">caută pe YouTube</a>
+          </span>
+          <div class="player" id="player-box"></div>
+          <span class="clock"></span>
+        </fieldset>
+
+        <fieldset>
+          <legend>Indiciul 1 · versul obscur</legend>
+          <textarea data-field="obscureLyric" placeholder="Un vers mai puțin cunoscut. Rândurile noi se păstrează.">${esc(d.obscureLyric)}</textarea>
+        </fieldset>
+
+        <fieldset>
+          <legend>Indiciul 4 · fragmentul audio</legend>
+          <div class="row">
+            ${timeField("audioStart", d.audioStart, "start")}
+            ${timeField("audioEnd", d.audioEnd, "final")}
+            <button data-play="audio">▶ Ascultă</button>
+            <span class="note" data-len="audio"></span>
+          </div>
+          <span class="note">Fără final, se iau ${AUDIO_DEFAULT}s de la start. Maxim ${MAX_CLIP}s.</span>
+        </fieldset>
+
+        <fieldset>
+          <legend>Indiciul 5 · versul din refren</legend>
+          <textarea data-field="chorusLyric" placeholder="Cuvintele din titlu se înlocuiesc cu ____">${esc(d.chorusLyric)}</textarea>
+        </fieldset>
+
+        <fieldset>
+          <legend>La victorie · refrenul care se aude</legend>
+          <div class="row">
+            ${timeField("chorusStart", d.chorusStart, "start")}
+            ${timeField("chorusEnd", d.chorusEnd, "final")}
+            <button data-play="chorus">▶ Ascultă</button>
+            <span class="note" data-len="chorus"></span>
+          </div>
+          <span class="note">Partea pe care o știe toată lumea. Maxim ${MAX_CLIP}s.</span>
+        </fieldset>
+
+        <fieldset>
+          <legend>Notițe (opțional)</legend>
+          <textarea data-field="notes" placeholder="Orice vrei să știu când o adaug.">${esc(d.notes)}</textarea>
+        </fieldset>
+
+        <ul class="problems" id="problems"></ul>
+
+        <div class="footer">
+          <label><input type="checkbox" data-field="ready" ${d.ready ? "checked" : ""} /> Gata, se poate adăuga</label>
+          <span class="saved" data-saved="${r.id}">${d.savedAt ? `Salvat la ${new Date(d.savedAt).toLocaleTimeString("ro-RO")}` : ""}</span>
+        </div>
+      </div>`;
+  }
+
+  function wireEditor(r) {
+    const card = document.querySelector(`[data-id="${r.id}"]`);
+    const d = (drafts[r.id] = draftFor(r));
+
+    const refresh = () => {
+      const ps = problems(d);
+      if (d.ready && ps.some((p) => p.bad)) d.ready = false;
+      const box = card.querySelector('[data-field="ready"]');
+      box.checked = d.ready;
+      box.disabled = ps.some((p) => p.bad);
+      card.querySelector("#problems").innerHTML = ps.map((p) => `<li class="${p.bad ? "bad" : ""}">${esc(p.text)}</li>`).join("");
+      const len = (a, b) => (a == null || b == null || Number.isNaN(a) || Number.isNaN(b) || b <= a ? "" : `${(b - a).toFixed(1)}s`);
+      card.querySelector('[data-len="audio"]').textContent = d.audioEnd == null && d.audioStart != null && !Number.isNaN(d.audioStart) ? `${AUDIO_DEFAULT}s` : len(d.audioStart, d.audioEnd);
+      card.querySelector('[data-len="chorus"]').textContent = len(d.chorusStart, d.chorusEnd);
+      card.classList.toggle("ready", d.ready);
+      const st = status(r);
+      const badge = card.querySelector(".badge");
+      badge.className = `badge ${st}`;
+      badge.textContent = BADGE[st];
+      card.querySelector(".who b").textContent = d.title;
+      card.querySelector(".who span").textContent = `${d.artist} · cerută de ${r.requestedBy}`;
+      renderStats();
+    };
+
+    card.querySelectorAll("[data-field]").forEach((el) => {
+      el.addEventListener(el.type === "checkbox" ? "change" : "input", () => {
+        const name = el.dataset.field;
+        d[name] = el.type === "checkbox" ? el.checked : el.value;
+        if (name === "youtubeUrl") {
+          clearTimeout(wireEditor.urlTimer);
+          wireEditor.urlTimer = setTimeout(() => mountPlayer(card.querySelector("#player-box"), videoId(d.youtubeUrl)), 600);
+        }
+        refresh();
+        save(r.id);
+      });
+    });
+
+    card.querySelectorAll("[data-time]").forEach((el) => {
+      const name = el.dataset.time;
+      el.addEventListener("input", () => {
+        d[name] = parseTime(el.value);
+        el.classList.toggle("invalid", Number.isNaN(d[name]));
+        refresh();
+        save(r.id);
+      });
+      el.addEventListener("blur", () => { if (!Number.isNaN(d[name])) el.value = formatTime(d[name]); });
+    });
+
+    card.querySelectorAll("[data-now]").forEach((btn) => btn.addEventListener("click", () => {
+      const t = currentTime();
+      if (t == null) return;
+      const name = btn.dataset.now;
+      d[name] = t;
+      const input = card.querySelector(`[data-time="${name}"]`);
+      input.value = formatTime(t);
+      input.classList.remove("invalid");
+      refresh();
+      save(r.id);
+    }));
+
+    card.querySelector('[data-play="audio"]').addEventListener("click", () =>
+      playRange(d.audioStart, d.audioEnd ?? (d.audioStart != null ? d.audioStart + AUDIO_DEFAULT : null)));
+    card.querySelector('[data-play="chorus"]').addEventListener("click", () => playRange(d.chorusStart, d.chorusEnd));
+
+    mountPlayer(card.querySelector("#player-box"), videoId(d.youtubeUrl));
+    refresh();
+  }
+
+  // --- pornire -----------------------------------------------------------
+
+  fetch("/api/data")
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.error) throw new Error(data.error);
+      requests = data.requests;
+      drafts = data.drafts;
+      renderList();
+    })
+    .catch((e) => { document.getElementById("stats").textContent = `Eroare: ${e.message}`; });
+</script>
+</body>
+</html>

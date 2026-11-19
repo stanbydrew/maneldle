@@ -165,23 +165,21 @@ function Requests({ pending, recent }: { pending: SongRequest[]; recent: SongReq
   const [onlyMine, setOnlyMine] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
+  // „Ale mele” filtrează și cererile închise recent, nu doar pe cele în așteptare.
   const filtered = onlyMine ? pending.filter((r) => r.mine) : pending;
+  const recentShown = onlyMine ? recent.filter((r) => r.mine) : recent;
   const shown = showAll ? filtered : filtered.slice(0, TOP_REQUESTS);
   const hidden = filtered.length - shown.length;
 
   return (
     <div className="flex flex-col gap-5">
-      {recent.length > 0 && (
-        <Section title="Recent" count={recent.length}>
-          <RequestList requests={recent} />
-        </Section>
-      )}
+      {recentShown.length > 0 && <Recent requests={recentShown} />}
 
       <Section
         title="Cele mai votate"
         count={filtered.length}
         action={
-          pending.some((r) => r.mine) && (
+          (pending.some((r) => r.mine) || recent.some((r) => r.mine)) && (
             <button
               type="button"
               aria-pressed={onlyMine}
@@ -215,6 +213,35 @@ function Requests({ pending, recent }: { pending: SongRequest[]; recent: SongReq
         )}
       </Section>
     </div>
+  );
+}
+
+/**
+ * Cererile închise în ultimele zile, strânse într-un singur rând care se
+ * desface la apăsare, ca să nu împingă în jos cererile active.
+ */
+function Recent({ requests }: { requests: SongRequest[] }) {
+  const added = requests.filter((r) => r.status === "added").length;
+  const rejected = requests.length - added; // doar ale tale: pe ale altora nu le vezi
+
+  const parts = [];
+  if (added > 0) parts.push(added === 1 ? "✅ 1 piesă nouă în joc" : `✅ ${added} piese noi în joc`);
+  if (rejected > 0) parts.push(rejected === 1 ? "1 dedicație de-a ta respinsă" : `${rejected} dedicații de-ale tale respinse`);
+
+  return (
+    <details className="group rounded-xl border border-border bg-surface">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1">
+          {parts.join(" · ")} <span className="text-muted">în ultimele 7 zile</span>
+        </span>
+        <span aria-hidden className="text-muted transition group-open:rotate-90">
+          ›
+        </span>
+      </summary>
+      <div className="border-t border-border p-2">
+        <RequestList requests={requests} />
+      </div>
+    </details>
   );
 }
 
