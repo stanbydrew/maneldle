@@ -6,8 +6,10 @@ import { requestSongAction, type DedicationFormState } from "./actions";
 const INPUT =
   "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base outline-none transition focus:border-accent disabled:opacity-50";
 
-export function DedicationForm() {
-  const [title, setTitle] = useState("");
+type Props = { initialTitle?: string; onClose: () => void };
+
+export function DedicationForm({ initialTitle = "", onClose }: Props) {
+  const [title, setTitle] = useState(initialTitle);
   const [artist, setArtist] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [result, setResult] = useState<DedicationFormState>({});
@@ -31,7 +33,17 @@ export function DedicationForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
-      <h2 className="font-semibold">Cere o piesă</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold">Cere o piesă</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Închide"
+          className="-m-1 rounded p-1 text-muted transition hover:text-foreground"
+        >
+          ✕
+        </button>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           name="title"
@@ -40,6 +52,7 @@ export function DedicationForm() {
           placeholder="Titlul piesei"
           maxLength={100}
           required
+          autoFocus
           autoComplete="off"
           aria-label="Titlul piesei"
           className={INPUT}

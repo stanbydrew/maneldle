@@ -40,7 +40,7 @@ export async function requestSongAction(input: unknown): Promise<DedicationFormS
       case "voted":
         return { ok: `„${result.title}” a cerut-o deja cineva. Ți-am adăugat +1.` };
       case "exists":
-        return { error: `„${result.title}” e deja în joc. Caut-o în lista de mai jos.` };
+        return { error: `„${result.title}” e deja în joc. O găsești la „În joc”.` };
     }
   } catch (error) {
     if (error instanceof DedicationError) return { error: error.message };

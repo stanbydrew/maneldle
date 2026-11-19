@@ -1,16 +1,21 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
+import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { compactKey, nameWords, roCollator } from "@/lib/text";
 
-export type CatalogSong = { id: number; title: string; artist: string };
+export type CatalogSong = { id: number; title: string; artist: string; createdAt: string };
+
+/** Cât stau la vedere cererile închise și cât e „nouă” o piesă adăugată. */
+export const RECENT_DAYS = 7;
+const RECENT_MS = RECENT_DAYS * 24 * 60 * 60 * 1000;
 
 export type SongRequest = {
   id: number;
   title: string;
   artist: string;
   youtubeUrl: string | null;
-  status: "pending" | "added";
+  status: "pending" | "added" | "rejected";
   requestedBy: string; // username
   votes: number;
   votedByMe: boolean;
@@ -27,24 +32,38 @@ export async function listCatalog(): Promise<CatalogSong[]> {
   "use cache";
   cacheTag("songs");
   cacheLife("minutes");
-  const { data, error } = await createAdminClient().from("songs").select("id, title, artist").eq("active", true);
+  const { data, error } = await createAdminClient()
+    .from("songs")
+    .select("id, title, artist, createdAt:created_at")
+    .eq("active", true);
   if (error) throw error;
   return (data as CatalogSong[]).sort((a, b) => roCollator.compare(a.title, b.title));
 }
 
 /**
- * Cererile vizibile: cele în așteptare (cele mai votate primele), apoi cele
- * adăugate deja. Cele respinse nu se mai văd. Fără cache: se schimbă la fiecare vot.
+ * Piesa e „nouă” dacă a intrat în joc după ziua lansării, în ultimele
+ * `RECENT_DAYS` zile. Cele puse la lansare nu sunt noi.
  */
-export async function listRequests(userId: string): Promise<SongRequest[]> {
+export function isNewSong(song: CatalogSong, now: number): boolean {
+  const created = Date.parse(song.createdAt);
+  return song.createdAt.slice(0, 10) > serverEnv.launchDate && now - created < RECENT_MS;
+}
+
+/**
+ * Cererile vizibile: cele în așteptare (cele mai votate primele), plus cele
+ * închise în ultimele `RECENT_DAYS` zile: adăugate (le vede toată lumea) și
+ * respinse (le vede doar cine le-a cerut). Fără cache: se schimbă la fiecare vot.
+ */
+export async function listRequests(userId: string, now: number): Promise<SongRequest[]> {
+  const since = new Date(now - RECENT_MS).toISOString();
   const { data, error } = await createAdminClient()
     .from("song_requests")
     .select(
       "id, title, artist, youtube_url, status, created_at, requested_by, requester:profiles!song_requests_requested_by_fkey (username), votes:song_request_votes (user_id)",
     )
-    .in("status", ["pending", "added"])
+    .or(`status.eq.pending,status_changed_at.gte.${since}`)
     .order("created_at", { ascending: true })
-    .limit(300);
+    .limit(500);
   if (error) throw error;
 
   type Row = {
@@ -52,13 +71,14 @@ export async function listRequests(userId: string): Promise<SongRequest[]> {
     title: string;
     artist: string;
     youtube_url: string | null;
-    status: "pending" | "added";
+    status: SongRequest["status"];
     requested_by: string;
     requester: { username: string } | null;
     votes: { user_id: string }[];
   };
 
   return (data as unknown as Row[])
+    .filter((r) => r.status !== "rejected" || r.requested_by === userId)
     .map((r) => ({
       id: Number(r.id),
       title: r.title,
@@ -70,7 +90,18 @@ export async function listRequests(userId: string): Promise<SongRequest[]> {
       votedByMe: r.votes.some((v) => v.user_id === userId),
       mine: r.requested_by === userId,
     }))
-    .sort((a, b) => Number(a.status === "added") - Number(b.status === "added") || b.votes - a.votes);
+    .sort((a, b) => b.votes - a.votes);
+}
+
+/**
+ * Tot ce arată pagina de dedicații. Ora se citește aici, la fiecare cerere
+ * (apelantul a citit deja cookie-urile), nu în componentă.
+ */
+export async function getDedicationsPage(userId: string) {
+  const now = Date.now();
+  const [requests, catalog] = await Promise.all([listRequests(userId, now), listCatalog()]);
+  const songs = catalog.map((s) => ({ id: s.id, title: s.title, artist: s.artist, isNew: isNewSong(s, now) }));
+  return { requests, songs };
 }
 
 /** Aceeași piesă: același titlu (fără diacritice/semne) și cel puțin un cuvânt comun în artist. */
